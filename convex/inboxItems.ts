@@ -1,8 +1,10 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
 import { CATEGORIES, EMOTIONAL_WEIGHTS, URGENCY_LEVELS } from "../lib/constants";
+import { cleanSubjectForTitle } from "../lib/email/parse-inbound";
 import { getCurrentUser, requireUser } from "./lib/auth";
 import { logAudit, pruneUndefined } from "./lib/audit";
 import { classificationFields, literals } from "./lib/validators";
@@ -160,6 +162,96 @@ export const convertToTask = mutation({
   },
 });
 
+/**
+ * Internal: capture a forwarded email as an inbox item (called by the
+ * /inbound-email HTTP webhook — no user identity, so the per-user
+ * captureToken is the credential). Schedules auto-classification so the
+ * item lands organized; classification failures degrade to "unprocessed".
+ */
+export const captureFromEmail = internalMutation({
+  args: {
+    captureToken: v.string(),
+    fromAddress: v.string(),
+    subject: v.string(),
+    body: v.string(),
+    messageId: v.optional(v.string()),
+  },
+  handler: async (
+    ctx,
+    args
+  ): Promise<
+    | { ok: true; itemId: Id<"inboxItems">; deduplicated: boolean }
+    | { ok: false; reason: "unknown_token" }
+  > => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_capture_token", (q) => q.eq("captureToken", args.captureToken))
+      .unique();
+    if (!user) {
+      // Unknown/rotated token. The webhook returns 200 so the provider
+      // doesn't retry; nothing is stored.
+      return { ok: false, reason: "unknown_token" };
+    }
+
+    // Idempotency: providers retry on timeouts. Same Message-ID within the
+    // recent window → treat as already captured.
+    if (args.messageId) {
+      const recent = await ctx.db
+        .query("inboxItems")
+        .withIndex("by_user", (q) => q.eq("userId", user._id))
+        .order("desc")
+        .take(50);
+      const existing = recent.find((item) => item.emailMessageId === args.messageId);
+      if (existing) {
+        return { ok: true, itemId: existing._id, deduplicated: true };
+      }
+    }
+
+    const now = Date.now();
+    const headerLines = [`From: ${args.fromAddress}`, args.subject ? `Subject: ${args.subject}` : null]
+      .filter(Boolean)
+      .join("\n");
+    const rawText = `Forwarded email\n${headerLines}\n\n${args.body}`.trim();
+
+    const displayTitle =
+      cleanSubjectForTitle(args.subject) ||
+      args.body.split("\n").find((line) => line.trim()) ||
+      "Forwarded email";
+
+    const itemId = await ctx.db.insert("inboxItems", {
+      userId: user._id,
+      rawText,
+      cleanedTitle:
+        displayTitle.length > 90 ? `${displayTitle.slice(0, 87)}…` : displayTitle,
+      summary: "",
+      category: "Someday", // placeholder until classified; UI hides it while unprocessed
+      urgency: "low",
+      emotionalWeight: "low",
+      suggestedNextAction: "",
+      suggestedFiveMinuteStart: "",
+      source: "integration",
+      status: "unprocessed",
+      emailFrom: args.fromAddress,
+      emailSubject: args.subject || undefined,
+      emailMessageId: args.messageId,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await logAudit(ctx, user._id, "inboxItem.capturedFromEmail", "inboxItems", itemId, {
+      from: args.fromAddress,
+    });
+
+    // Auto-classify on arrival (allowed by the approval-first rules: classify/
+    // summarize is automatic; consequential actions still require approval).
+    await ctx.scheduler.runAfter(0, internal.ai.classifyForUser, {
+      userId: user._id,
+      inboxItemId: itemId,
+    });
+
+    return { ok: true, itemId, deduplicated: false };
+  },
+});
+
 /** Internal: ownership-checked fetch for AI actions. */
 export const getOwned = internalQuery({
   args: { id: v.id("inboxItems") },
@@ -167,6 +259,16 @@ export const getOwned = internalQuery({
     const user = await requireUser(ctx);
     const item = await ctx.db.get(args.id);
     if (!item || item.userId !== user._id) throw new Error("Inbox item not found.");
+    return item;
+  },
+});
+
+/** Internal: identity-less fetch for scheduled jobs, checked against an explicit owner. */
+export const getForUser = internalQuery({
+  args: { id: v.id("inboxItems"), userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const item = await ctx.db.get(args.id);
+    if (!item || item.userId !== args.userId) throw new Error("Inbox item not found.");
     return item;
   },
 });

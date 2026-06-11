@@ -17,6 +17,7 @@ import type * as ai from "../ai.js";
 import type * as crons from "../crons.js";
 import type * as dailyBriefs from "../dailyBriefs.js";
 import type * as drafts from "../drafts.js";
+import type * as http from "../http.js";
 import type * as inboxItems from "../inboxItems.js";
 import type * as integrations from "../integrations.js";
 import type * as lib_audit from "../lib/audit.js";
@@ -40,6 +41,7 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   dailyBriefs: typeof dailyBriefs;
   drafts: typeof drafts;
+  http: typeof http;
   inboxItems: typeof inboxItems;
   integrations: typeof integrations;
   "lib/audit": typeof lib_audit;

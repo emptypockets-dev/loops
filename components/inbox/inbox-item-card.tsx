@@ -11,6 +11,7 @@ import {
   ArrowRight,
   CheckSquare,
   Loader2,
+  Mail,
   MoreHorizontal,
   PenLine,
   Sparkles,
@@ -97,6 +98,11 @@ export function InboxItemCard({ item }: { item: Doc<"inboxItems"> }) {
     <Card className={isArchived ? "opacity-70" : undefined}>
       <CardHeader className="space-y-2 p-4 pb-2">
         <div className="flex flex-wrap items-center gap-2">
+          {item.source === "integration" && (
+            <Badge variant="outline">
+              <Mail aria-hidden="true" /> forwarded email
+            </Badge>
+          )}
           {hasClassification && <ClassificationBadge by={item.classifiedBy!} />}
           {hasClassification && <Badge variant="secondary">{item.category}</Badge>}
           {hasClassification && (
@@ -120,6 +126,9 @@ export function InboxItemCard({ item }: { item: Doc<"inboxItems"> }) {
         <h3 className="font-medium leading-snug">{item.cleanedTitle || item.rawText}</h3>
       </CardHeader>
       <CardContent className="space-y-2 p-4 pt-0">
+        {item.emailFrom && (
+          <p className="text-xs text-muted-foreground">From: {item.emailFrom}</p>
+        )}
         {item.summary && <p className="text-sm text-muted-foreground">{item.summary}</p>}
         {item.suggestedNextAction && (
           <p className="flex items-start gap-2 text-sm">

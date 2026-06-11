@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { action, internalAction } from "./_generated/server";
 import type { ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
-import type { Id } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import { callOpenAIJson } from "../lib/ai/openai";
 import {
   classificationSchema,
@@ -28,6 +28,34 @@ import { addDaysStr, mondayOf, utcToday } from "../lib/dates";
 
 // ── 1. Classify a single inbox item ─────────────────────────────────────────
 
+async function runClassification(
+  ctx: ActionCtx,
+  user: Doc<"users">,
+  item: Doc<"inboxItems">
+): Promise<AiResult> {
+  const result = await callOpenAIJson({
+    system: CLASSIFY_SYSTEM_PROMPT,
+    payload: { rawText: item.rawText },
+    schema: classificationSchema,
+  });
+  if (!result.ok) return result;
+
+  // Approval-first: auto-archive applies only to low-risk Trash items,
+  // and only when the user has opted in via Settings.
+  const autoArchive =
+    user.autoArchiveEnabled === true &&
+    result.data.category === "Trash" &&
+    result.data.urgency === "low" &&
+    result.data.emotionalWeight === "low";
+
+  await ctx.runMutation(internal.inboxItems.applyClassification, {
+    id: item._id,
+    classification: result.data,
+    autoArchive,
+  });
+  return { ok: true };
+}
+
 export const classifyInboxItem = action({
   args: { inboxItemId: v.id("inboxItems") },
   handler: async (ctx, args): Promise<AiResult> => {
@@ -36,28 +64,28 @@ export const classifyInboxItem = action({
 
     // Ownership-checked fetch (throws if the item isn't the caller's).
     const item = await ctx.runQuery(internal.inboxItems.getOwned, { id: args.inboxItemId });
+    return await runClassification(ctx, user, item);
+  },
+});
 
-    const result = await callOpenAIJson({
-      system: CLASSIFY_SYSTEM_PROMPT,
-      payload: { rawText: item.rawText },
-      schema: classificationSchema,
-    });
-    if (!result.ok) return result;
-
-    // Approval-first: auto-archive applies only to low-risk Trash items,
-    // and only when the user has opted in via Settings.
-    const autoArchive =
-      user.autoArchiveEnabled === true &&
-      result.data.category === "Trash" &&
-      result.data.urgency === "low" &&
-      result.data.emotionalWeight === "low";
-
-    await ctx.runMutation(internal.inboxItems.applyClassification, {
+/**
+ * Identity-less variant for scheduled jobs (email-in capture). Takes a
+ * userId because the webhook has no Clerk identity; internal-only, so the
+ * client can never call it. Failures just leave the item "unprocessed".
+ */
+export const classifyForUser = internalAction({
+  args: { userId: v.id("users"), inboxItemId: v.id("inboxItems") },
+  handler: async (ctx, args): Promise<void> => {
+    const user = await ctx.runQuery(internal.users.getById, { id: args.userId });
+    if (!user) return;
+    const item = await ctx.runQuery(internal.inboxItems.getForUser, {
       id: args.inboxItemId,
-      classification: result.data,
-      autoArchive,
+      userId: args.userId,
     });
-    return { ok: true };
+    const result = await runClassification(ctx, user, item);
+    if (!result.ok) {
+      console.error(`Auto-classify failed for item ${args.inboxItemId}: ${result.error}`);
+    }
   },
 });
 

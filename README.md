@@ -74,20 +74,62 @@ Sign in → a Convex user record is upserted idempotently and the eight default 
 
 `npm run build` / `npm run typecheck` serve as the smoke test.
 
-### 5. Deploy to Vercel
+### 5. Email-in capture (forward anything to your Loops address) — optional
+
+Every user gets a private capture address. Forward an email to it → it lands in the Inbox with `source: integration`, gets auto-classified, and shows up in the daily brief like anything else. One-way only: Loops never sends email.
+
+**How it works**
+
+- `convex/http.ts` exposes `POST /inbound-email` on your deployment's **`.convex.site`** domain (note: `.site`, not `.cloud`).
+- The recipient address carries a per-user secret as a plus-tag: `local+<captureToken>@domain`. Tokens are random (122-bit), stored on the user record, and rotatable from **Settings → Integrations** (audit-logged).
+- Payload parsing (`lib/email/parse-inbound.ts`) understands **Postmark inbound** JSON and a generic `{ to, from, subject, text }` shape; HTML-only emails are stripped to text, bodies truncated to 15k chars, and retries are deduplicated by Message-ID.
+- Unknown/rotated tokens are acknowledged with 200 and ignored (so providers don't retry); an optional shared secret guards the endpoint itself.
+
+**Postmark setup (~5 minutes)**
+
+1. Create a [Postmark](https://postmarkapp.com) server → open its **Default Inbound Stream** → copy the server's inbound address (looks like `a1b2c3d4e5f6@inbound.postmarkapp.com`).
+2. Set the stream's **webhook URL** to your Convex site URL, embedding a secret you make up:
+   ```
+   https://<your-deployment>.convex.site/inbound-email?secret=<make-something-up>
+   ```
+   (`<your-deployment>` is the subdomain from `NEXT_PUBLIC_CONVEX_URL`.)
+3. Tell Convex the same secret:
+   ```bash
+   npx convex env set INBOUND_EMAIL_WEBHOOK_SECRET <the-same-secret>
+   ```
+4. Tell the app the inbound mailbox, in `.env.local` (and later in Vercel):
+   ```
+   NEXT_PUBLIC_INBOUND_EMAIL_BASE=a1b2c3d4e5f6@inbound.postmarkapp.com
+   ```
+5. Restart `npm run dev`, open **Settings → Integrations**, copy your personal address (`a1b2c3d4e5f6+<token>@inbound.postmarkapp.com`), and forward an email to it.
+
+Postmark's dashboard "Check" button sends a sample payload without your token — the endpoint answers `200 ignored`, which counts as a passing check. Test for real by forwarding an actual email. A custom domain (`in.yourdomain.com` MX → Postmark) is optional polish.
+
+**Testing without a provider**
+
+```bash
+curl -X POST "https://<your-deployment>.convex.site/inbound-email?secret=<secret>" \
+  -H "Content-Type: application/json" \
+  -d '{"to":"capture+<your-token>@example.com","from":"landlord@example.com","subject":"Lease renewal","text":"Your lease ends June 30. Let me know by Friday."}'
+```
+
+Your token is shown in Settings → Integrations even before `NEXT_PUBLIC_INBOUND_EMAIL_BASE` is configured.
+
+### 6. Deploy to Vercel
 
 1. Push the repo and import it into Vercel.
 2. **Vercel env vars** (Production + Preview):
    - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`
    - `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in`, `NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up`
    - `NEXT_PUBLIC_CONVEX_URL` — your **production** Convex URL (from `npx convex deploy`)
+   - `NEXT_PUBLIC_INBOUND_EMAIL_BASE` — if you use email-in capture
    - `CONVEX_DEPLOY_KEY` — if you use the build-command integration below
 3. **Convex production deployment**: either run `npx convex deploy` manually before each release, or set Vercel's build command to:
    ```bash
    npx convex deploy --cmd 'npm run build'
    ```
    so the schema/functions deploy in lockstep with the frontend.
-4. Set `CLERK_JWT_ISSUER_DOMAIN` and `OPENAI_API_KEY` on the **production** Convex deployment too (`npx convex env set --prod …`).
+4. Set `CLERK_JWT_ISSUER_DOMAIN`, `OPENAI_API_KEY` (and `INBOUND_EMAIL_WEBHOOK_SECRET` if using email-in) on the **production** Convex deployment too (`npx convex env set --prod …`), and point your email provider's webhook at the production `.convex.site` URL.
 5. In Clerk, add your Vercel domain to the allowed origins (and switch to production keys when you go live).
 
 ---
@@ -101,7 +143,8 @@ Sign in → a Convex user record is upserted idempotently and the eight default 
 - **Constants** (`lib/constants/`): canonical categories, enums, tone preamble, default-loop seeds, approval rules. Convex schema validators, zod schemas, prompts, and screens all read from these.
 - **Crons** (`convex/crons.ts`): daily-brief generation (05:00 UTC) and the Sunday weekly-review generation (16:00 UTC).
 - **Audit log**: consequential mutations (convert, delete, approve/reject, loop runs, seeding, AI writes) append `auditLog` entries.
-- **Integrations** are scaffolding only: `lib/integrations/provider.ts` defines the `IntegrationProvider` interface; Settings shows Notion / Todoist / Google Calendar / Gmail as “Coming soon”. The app is fully usable with zero integrations. Token fields are placeholders — no encryption implemented.
+- **Email-in capture** is the one live integration: a Convex HTTP action (`convex/http.ts`) receives provider webhooks, resolves the user by their rotatable capture token, stores the email as an inbox item, and schedules auto-classification (which respects the auto-archive opt-in). Forwarded items are marked “forwarded email” in the Inbox.
+- **OAuth integrations** remain scaffolding: `lib/integrations/provider.ts` defines the `IntegrationProvider` interface; Settings shows Notion / Todoist / Google Calendar / Gmail as “Coming soon”. The app is fully usable with zero integrations. OAuth token fields are placeholders — no encryption implemented.
 
 ## Assumptions (chosen for shippability)
 
@@ -110,7 +153,9 @@ Sign in → a Convex user record is upserted idempotently and the eight default 
 - The reviews table includes a `needsNextAction` array beyond the original spec because the Review screen has that section.
 - An extra optional `classifiedBy` (`ai` | `user`) field on inbox items drives the AI-suggested vs. confirmed distinction.
 - Monthly loop cadence approximates to 30 days for the next-run nudge.
-- “Voice note” capture is a disabled placeholder button; real capture is text-only.
+- “Voice note” capture is a disabled placeholder button; real capture is text or forwarded email.
+- Email-in attachments are ignored (text only); bodies are truncated at 15k characters; rate limiting beyond the unguessable token + optional webhook secret is future hardening.
+- Forwarded emails auto-classify on arrival (the approval-first rules explicitly allow automatic classification; consequential actions still require approval).
 - The weekly cron *generates* the review (rather than only nudging) so it's waiting on the Review screen Sunday evening.
 
 ## Project layout

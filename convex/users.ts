@@ -4,6 +4,11 @@ import { DEFAULT_LOOPS } from "../lib/constants";
 import { getCurrentUser, requireUser } from "./lib/auth";
 import { logAudit } from "./lib/audit";
 
+/** Unguessable secret for the email-in capture address (~122 bits of entropy). */
+function generateCaptureToken(): string {
+  return crypto.randomUUID().replace(/-/g, "");
+}
+
 /** The signed-in user's record, or null before `ensure` has run. */
 export const current = query({
   args: {},
@@ -38,6 +43,7 @@ export const ensure = mutation({
         clerkUserId: identity.subject,
         email,
         name,
+        captureToken: generateCaptureToken(),
         createdAt: now,
         updatedAt: now,
       });
@@ -45,6 +51,11 @@ export const ensure = mutation({
       await logAudit(ctx, userId, "user.created", "users", userId);
     } else if (user.email !== email || user.name !== name) {
       await ctx.db.patch(user._id, { email, name, updatedAt: now });
+    }
+
+    // Backfill for accounts created before email-in capture existed.
+    if (user.captureToken === undefined) {
+      await ctx.db.patch(user._id, { captureToken: generateCaptureToken(), updatedAt: now });
     }
 
     if (user.defaultLoopsSeededAt === undefined) {
@@ -71,6 +82,21 @@ export const ensure = mutation({
     }
 
     return { userId: user._id };
+  },
+});
+
+/**
+ * Rotate (or create) the email capture token. The old address stops working
+ * immediately — the recovery path if a capture address ever leaks.
+ */
+export const regenerateCaptureToken = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const user = await requireUser(ctx);
+    const captureToken = generateCaptureToken();
+    await ctx.db.patch(user._id, { captureToken, updatedAt: Date.now() });
+    await logAudit(ctx, user._id, "user.captureTokenRegenerated", "users", user._id);
+    return { captureToken };
   },
 });
 
@@ -129,6 +155,14 @@ export const getCurrent = internalQuery({
   args: {},
   handler: async (ctx) => {
     return await getCurrentUser(ctx);
+  },
+});
+
+/** Internal: load a user by id (webhook/scheduled paths that have no identity). */
+export const getById = internalQuery({
+  args: { id: v.id("users") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.id);
   },
 });
 

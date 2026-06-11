@@ -27,9 +27,13 @@ export default defineSchema({
     autoArchiveEnabled: v.optional(v.boolean()),
     // Idempotency marker for default-loop seeding — set once, never re-seeded.
     defaultLoopsSeededAt: v.optional(v.number()),
+    // Secret for the email-in capture address (capture+<token>@…). Rotatable.
+    captureToken: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
-  }).index("by_clerk_user_id", ["clerkUserId"]),
+  })
+    .index("by_clerk_user_id", ["clerkUserId"])
+    .index("by_capture_token", ["captureToken"]),
 
   inboxItems: defineTable({
     userId: v.id("users"),
@@ -46,6 +50,10 @@ export default defineSchema({
     status: literals(INBOX_STATUSES),
     // Distinguishes "AI suggested" from "Confirmed by you" in the UI.
     classifiedBy: v.optional(literals(CLASSIFIED_BY)),
+    // Present when the item arrived via the email-in capture address.
+    emailFrom: v.optional(v.string()),
+    emailSubject: v.optional(v.string()),
+    emailMessageId: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
     archivedAt: v.optional(v.number()),

@@ -23,6 +23,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoadingState } from "@/components/app/loading-state";
+import { EmailCaptureCard } from "./email-capture-card";
 
 function ProfileSection() {
   const { user } = useUser();
@@ -148,7 +149,7 @@ function IntegrationsSection() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Integrations</CardTitle>
+        <CardTitle>Connected apps</CardTitle>
         <CardDescription>
           Loops is fully usable without any of these. They're optional sync surfaces — Convex stays
           the source of truth.
@@ -248,7 +249,8 @@ export function SettingsView() {
         <TabsContent value="approvals">
           <ApprovalRulesSection />
         </TabsContent>
-        <TabsContent value="integrations">
+        <TabsContent value="integrations" className="space-y-4">
+          <EmailCaptureCard />
           <IntegrationsSection />
         </TabsContent>
         <TabsContent value="data">

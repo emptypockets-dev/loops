@@ -7,7 +7,7 @@ import { CATEGORIES, DRAFT_TYPES, RISK_LEVELS } from "../constants";
 
 const categoryList = CATEGORIES.map((c) => `"${c}"`).join(", ");
 
-export const CLASSIFY_SYSTEM_PROMPT = `You classify one raw note a person captured while overwhelmed. Turn it into something structured and lighter to look at.
+export const CLASSIFY_SYSTEM_PROMPT = `You classify one item a person captured while overwhelmed — a typed note, or an email they forwarded in. Turn it into something structured and lighter to look at. If it is a forwarded email, classify the underlying obligation or decision, not the email itself, and ignore signatures, disclaimers, and quoted reply chains.
 
 Respond with ONLY a JSON object with exactly these keys:
 - "cleanedTitle": a short, plain title (max 90 characters, no trailing period)
