@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Calm command-center palette: warm neutrals, soft teal primary. */
+@layer base {
+  :root {
+    --background: 40 20% 98%;
+    --foreground: 220 15% 16%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 15% 16%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 15% 16%;
+    --primary: 184 50% 30%;
+    --primary-foreground: 180 20% 98%;
+    --secondary: 40 20% 93%;
+    --secondary-foreground: 220 15% 22%;
+    --muted: 40 18% 94%;
+    --muted-foreground: 220 8% 44%;
+    --accent: 184 35% 92%;
+    --accent-foreground: 184 50% 22%;
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 40 12% 88%;
+    --input: 40 12% 84%;
+    --ring: 184 50% 30%;
+    --radius: 0.625rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+}
