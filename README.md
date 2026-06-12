@@ -29,6 +29,8 @@ The public landing page (`/`) carries the full pitch — hero, how-it-works, fea
 
 ## Setup
 
+> **Setting up for the first time? Use [SETUP.md](./SETUP.md)** — a tiered, check-as-you-go checklist with one action per step, verification checkpoints, and explicit stop points (each tier ends with a working app). Run `npm run doctor` anytime to see where you are. The sections below are the reference version of the same material.
+
 ### 1. Install
 
 ```bash
