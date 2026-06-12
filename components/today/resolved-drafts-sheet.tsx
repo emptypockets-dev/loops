@@ -7,6 +7,7 @@ import type { Doc } from "@/convex/_generated/dataModel";
 import { toast } from "sonner";
 import { Check, ClipboardCopy, ExternalLink, History, Mail, X } from "lucide-react";
 import type { DraftStatus } from "@/lib/constants";
+import { CONFIRMED_BADGE_CLASS } from "@/lib/badge-styles";
 import { buildGmailComposeUrl } from "@/lib/email/compose-link";
 import { formatAgo } from "@/lib/dates";
 import { Badge } from "@/components/ui/badge";
@@ -25,14 +26,14 @@ import { LoadingState } from "@/components/app/loading-state";
 function StatusBadge({ status }: { status: DraftStatus }) {
   if (status === "approved") {
     return (
-      <Badge variant="outline" className="border-emerald-700/40 bg-emerald-50 text-emerald-900">
+      <Badge variant="outline" className={CONFIRMED_BADGE_CLASS}>
         <Check aria-hidden="true" /> approved
       </Badge>
     );
   }
   if (status === "sent") {
     return (
-      <Badge variant="outline" className="border-emerald-700/40 bg-emerald-50 text-emerald-900">
+      <Badge variant="outline" className={CONFIRMED_BADGE_CLASS}>
         <Check aria-hidden="true" /> on your calendar
       </Badge>
     );

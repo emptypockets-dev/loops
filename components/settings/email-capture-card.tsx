@@ -5,6 +5,7 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
 import { ClipboardCopy, Loader2, Mail, RefreshCw, Sparkles } from "lucide-react";
+import { CONFIRMED_BADGE_CLASS } from "@/lib/badge-styles";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -71,7 +72,7 @@ export function EmailCaptureCard() {
         <CardTitle className="flex flex-wrap items-center gap-2">
           <Mail className="h-4 w-4 text-primary" aria-hidden="true" />
           Email capture
-          <Badge variant="outline" className="border-emerald-700/40 bg-emerald-50 text-emerald-900">
+          <Badge variant="outline" className={CONFIRMED_BADGE_CLASS}>
             live
           </Badge>
         </CardTitle>

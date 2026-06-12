@@ -1,5 +1,6 @@
 import { Sparkles, UserCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { AI_BADGE_CLASS, CONFIRMED_BADGE_CLASS } from "@/lib/badge-styles";
 import { cn } from "@/lib/utils";
 
 /**
@@ -15,20 +16,14 @@ export function ClassificationBadge({
 }) {
   if (by === "ai") {
     return (
-      <Badge
-        variant="outline"
-        className={cn("border-dashed border-amber-600/60 bg-amber-50 text-amber-900", className)}
-      >
+      <Badge variant="outline" className={cn(AI_BADGE_CLASS, className)}>
         <Sparkles aria-hidden="true" />
         AI suggested
       </Badge>
     );
   }
   return (
-    <Badge
-      variant="outline"
-      className={cn("border-emerald-700/40 bg-emerald-50 text-emerald-900", className)}
-    >
+    <Badge variant="outline" className={cn(CONFIRMED_BADGE_CLASS, className)}>
       <UserCheck aria-hidden="true" />
       Confirmed by you
     </Badge>

@@ -2,6 +2,7 @@
 
 import type { Doc } from "@/convex/_generated/dataModel";
 import { Eye, Loader2, RefreshCw, Sparkles, Wind } from "lucide-react";
+import { AI_BADGE_CLASS } from "@/lib/badge-styles";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,7 +44,7 @@ export function DailyBriefCard({
       <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
           Daily Brief
-          <Badge variant="outline" className="border-dashed border-amber-600/60 bg-amber-50 text-amber-900">
+          <Badge variant="outline" className={AI_BADGE_CLASS}>
             <Sparkles aria-hidden="true" /> AI generated
           </Badge>
         </CardTitle>

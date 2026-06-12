@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import type { DraftType, RiskLevel } from "@/lib/constants";
+import { AI_BADGE_CLASS, DANGER_BADGE_CLASS, WARN_BADGE_CLASS } from "@/lib/badge-styles";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
@@ -43,14 +44,14 @@ const TYPE_LABELS: Record<DraftType, string> = {
 function RiskBadge({ level }: { level: RiskLevel }) {
   if (level === "high") {
     return (
-      <Badge variant="outline" className="border-red-700/40 bg-red-50 text-red-900">
+      <Badge variant="outline" className={DANGER_BADGE_CLASS}>
         <ShieldAlert aria-hidden="true" /> high risk — needs you
       </Badge>
     );
   }
   if (level === "medium") {
     return (
-      <Badge variant="outline" className="border-amber-700/40 bg-amber-50 text-amber-900">
+      <Badge variant="outline" className={WARN_BADGE_CLASS}>
         <AlertTriangle aria-hidden="true" /> medium risk
       </Badge>
     );
@@ -118,7 +119,7 @@ export function ApprovalDraftCard({ draft }: { draft: Doc<"drafts"> }) {
     <Card>
       <CardHeader className="space-y-2 p-4 pb-2">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline" className="border-dashed border-amber-600/60 bg-amber-50 text-amber-900">
+          <Badge variant="outline" className={AI_BADGE_CLASS}>
             <Sparkles aria-hidden="true" /> AI draft
           </Badge>
           <Badge variant="secondary">{TYPE_LABELS[draft.type]}</Badge>

@@ -7,8 +7,10 @@ import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
 import { Check, Download, Loader2, ShieldCheck } from "lucide-react";
 import { APPROVAL_RULES, OPENAI_MODEL, TONE_PREAMBLE } from "@/lib/constants";
+import { CONFIRMED_BADGE_CLASS, WARN_BADGE_CLASS } from "@/lib/badge-styles";
 import { INTEGRATION_DESCRIPTORS } from "@/lib/integrations/provider";
 import { formatAgo, localToday } from "@/lib/dates";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -190,7 +192,7 @@ function ApprovalRulesSection() {
               <p className="text-sm text-muted-foreground">{rule.description}</p>
             </div>
             {rule.requiresApproval ? (
-              <Badge variant="outline" className="shrink-0 border-amber-700/40 bg-amber-50 text-amber-900">
+              <Badge variant="outline" className={cn("shrink-0", WARN_BADGE_CLASS)}>
                 <ShieldCheck aria-hidden="true" /> approval required
               </Badge>
             ) : (
@@ -221,10 +223,7 @@ function IntegrationsSection() {
             <div className="flex items-center justify-between gap-2">
               <p className="font-medium">{integration.name}</p>
               {integration.status === "live" ? (
-                <Badge
-                  variant="outline"
-                  className="border-emerald-700/40 bg-emerald-50 text-emerald-900"
-                >
+                <Badge variant="outline" className={CONFIRMED_BADGE_CLASS}>
                   live
                 </Badge>
               ) : (

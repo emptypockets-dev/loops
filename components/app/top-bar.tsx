@@ -7,6 +7,7 @@ import { Menu, Orbit, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { SidebarNav } from "./sidebar-nav";
+import { ThemeToggle } from "./theme-toggle";
 
 export function TopBar() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -36,6 +37,7 @@ export function TopBar() {
             <Plus className="h-5 w-5" />
           </Link>
         </Button>
+        <ThemeToggle />
         <UserButton afterSignOutUrl="/" />
       </div>
     </header>

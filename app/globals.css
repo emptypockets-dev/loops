@@ -28,6 +28,31 @@
   }
 }
 
+/* Calm night palette — same teal identity, easy on evening eyes. */
+@layer base {
+  .dark {
+    --background: 220 14% 9%;
+    --foreground: 40 14% 90%;
+    --card: 220 13% 12%;
+    --card-foreground: 40 14% 90%;
+    --popover: 220 13% 12%;
+    --popover-foreground: 40 14% 90%;
+    --primary: 184 45% 52%;
+    --primary-foreground: 220 15% 10%;
+    --secondary: 220 10% 19%;
+    --secondary-foreground: 40 14% 86%;
+    --muted: 220 10% 17%;
+    --muted-foreground: 220 8% 60%;
+    --accent: 184 30% 20%;
+    --accent-foreground: 184 35% 84%;
+    --destructive: 0 55% 52%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 220 10% 21%;
+    --input: 220 10% 26%;
+    --ring: 184 45% 52%;
+  }
+}
+
 @layer base {
   * {
     @apply border-border;

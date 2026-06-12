@@ -18,6 +18,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { formatWeekRange, localToday, mondayOf } from "@/lib/dates";
+import { AI_BADGE_CLASS } from "@/lib/badge-styles";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -134,10 +135,7 @@ export function ReviewView() {
             <Badge variant="secondary">
               Week of {formatWeekRange(review.weekStart, review.weekEnd)}
             </Badge>
-            <Badge
-              variant="outline"
-              className="border-dashed border-amber-600/60 bg-amber-50 text-amber-900"
-            >
+            <Badge variant="outline" className={AI_BADGE_CLASS}>
               <Sparkles aria-hidden="true" /> AI summary
             </Badge>
             {!isCurrentWeek && (
