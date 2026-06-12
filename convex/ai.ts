@@ -18,7 +18,7 @@ import {
 } from "../lib/ai/prompts";
 import type { AiResult } from "../lib/ai/types";
 import { DAILY_BRIEF_CLOSING_LINE, requiresApproval } from "../lib/constants";
-import { addDaysStr, mondayOf, utcToday } from "../lib/dates";
+import { addDaysStr, mondayOf } from "../lib/dates";
 import { buildDailyBriefEmail, buildWeeklyReviewEmail } from "../lib/email/templates";
 import { fetchEventsForWindow } from "./lib/googleCalendar";
 import { getAppBaseUrl, sendTransactionalEmail } from "./lib/postmark";
@@ -181,27 +181,66 @@ export const generateDailyBrief = action({
 });
 
 /**
- * Daily cron fan-out (UTC day — see README assumption). When outbound email
- * is configured, the brief is also delivered to the user's own address so it
- * lands in their attention stream instead of waiting in the app.
+ * Hourly scheduler, timezone-aware: each user gets their brief at **their**
+ * 5am and their review Sunday at **their** 4pm, based on the browser offset
+ * captured at sign-in (users without one fall back to UTC). When outbound
+ * email is configured, both are delivered to the user's own address so they
+ * land in the attention stream instead of waiting in the app.
  */
-export const generateDailyBriefsForAllUsers = internalAction({
+export const runScheduledDeliveries = internalAction({
   args: {},
   handler: async (ctx): Promise<void> => {
     const users = await ctx.runQuery(internal.users.listAll, {});
-    const date = utcToday();
     const appUrl = getAppBaseUrl();
+    const nowMs = Date.now();
+
     for (const user of users) {
-      const result = await generateBriefForUser(ctx, user, date, 0);
-      if (!result.ok) {
-        console.error(`Daily brief failed for user ${user._id}: ${result.error}`);
-        continue;
+      // getTimezoneOffset() is (UTC − local) minutes, so local = UTC − offset.
+      const offset = user.timezoneOffsetMinutes ?? 0;
+      const local = new Date(nowMs - offset * 60_000);
+      const localHour = local.getUTCHours();
+      const localDate = local.toISOString().slice(0, 10);
+
+      if (localHour === 5) {
+        // Skip if a brief already exists for the user's local day (e.g. they
+        // generated one manually) — also makes retried cron runs idempotent.
+        const existing = await ctx.runQuery(internal.dailyBriefs.getForUserDate, {
+          userId: user._id,
+          date: localDate,
+        });
+        if (!existing) {
+          const result = await generateBriefForUser(ctx, user, localDate, offset);
+          if (!result.ok) {
+            console.error(`Daily brief failed for user ${user._id}: ${result.error}`);
+          } else if (user.briefEmailEnabled !== false && user.email) {
+            const email = buildDailyBriefEmail({ date: localDate, ...result.brief, appUrl });
+            const sent = await sendTransactionalEmail({ to: user.email, ...email });
+            if (!sent.ok && !sent.skipped) {
+              console.error(`Brief email failed for user ${user._id}: ${sent.error}`);
+            }
+          }
+        }
       }
-      if (user.briefEmailEnabled !== false && user.email) {
-        const email = buildDailyBriefEmail({ date, ...result.brief, appUrl });
-        const sent = await sendTransactionalEmail({ to: user.email, ...email });
-        if (!sent.ok && !sent.skipped) {
-          console.error(`Brief email failed for user ${user._id}: ${sent.error}`);
+
+      // Sunday 4pm local: generate (refresh) the week's review and deliver it.
+      if (local.getUTCDay() === 0 && localHour === 16) {
+        const weekStart = mondayOf(localDate);
+        const result = await generateReviewForUser(ctx, user._id, weekStart);
+        if (!result.ok) {
+          console.error(`Weekly review failed for user ${user._id}: ${result.error}`);
+        } else if (user.reviewEmailEnabled !== false && user.email) {
+          const email = buildWeeklyReviewEmail({
+            weekStart,
+            weekEnd: addDaysStr(weekStart, 6),
+            completed: result.review.completed,
+            patterns: result.review.patterns,
+            needsNextAction: result.review.needsNextAction,
+            appUrl,
+          });
+          const sent = await sendTransactionalEmail({ to: user.email, ...email });
+          if (!sent.ok && !sent.skipped) {
+            console.error(`Review email failed for user ${user._id}: ${sent.error}`);
+          }
         }
       }
     }
@@ -257,40 +296,6 @@ export const generateWeeklyReview = action({
     if (!user) return { ok: false, error: "You're not signed in." };
     const result = await generateReviewForUser(ctx, user._id, mondayOf(args.date));
     return result.ok ? { ok: true } : result;
-  },
-});
-
-/**
- * Weekly cron: the Sunday "review reminder" generates the week's review and,
- * when outbound email is configured, delivers it to the user.
- */
-export const generateWeeklyReviewsForAllUsers = internalAction({
-  args: {},
-  handler: async (ctx): Promise<void> => {
-    const users = await ctx.runQuery(internal.users.listAll, {});
-    const weekStart = mondayOf(utcToday());
-    const appUrl = getAppBaseUrl();
-    for (const user of users) {
-      const result = await generateReviewForUser(ctx, user._id, weekStart);
-      if (!result.ok) {
-        console.error(`Weekly review failed for user ${user._id}: ${result.error}`);
-        continue;
-      }
-      if (user.reviewEmailEnabled !== false && user.email) {
-        const email = buildWeeklyReviewEmail({
-          weekStart,
-          weekEnd: addDaysStr(weekStart, 6),
-          completed: result.review.completed,
-          patterns: result.review.patterns,
-          needsNextAction: result.review.needsNextAction,
-          appUrl,
-        });
-        const sent = await sendTransactionalEmail({ to: user.email, ...email });
-        if (!sent.ok && !sent.skipped) {
-          console.error(`Review email failed for user ${user._id}: ${sent.error}`);
-        }
-      }
-    }
   },
 });
 

@@ -24,14 +24,23 @@ export const current = query({
  * defaults later won't resurrect them).
  */
 export const ensure = mutation({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    // From the browser: keeps scheduled deliveries aligned to the user's day
+    // (re-sent every sign-in, so DST drift self-corrects).
+    timezoneOffsetMinutes: v.optional(v.number()),
+    timezone: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated.");
 
     const now = Date.now();
     const email = identity.email ?? "";
     const name = identity.name ?? identity.nickname ?? email.split("@")[0] ?? "";
+    const timezoneOffsetMinutes =
+      args.timezoneOffsetMinutes !== undefined
+        ? Math.max(-840, Math.min(840, args.timezoneOffsetMinutes))
+        : undefined;
 
     let user = await ctx.db
       .query("users")
@@ -44,13 +53,26 @@ export const ensure = mutation({
         email,
         name,
         captureToken: generateCaptureToken(),
+        timezoneOffsetMinutes,
+        timezone: args.timezone,
         createdAt: now,
         updatedAt: now,
       });
       user = (await ctx.db.get(userId))!;
       await logAudit(ctx, userId, "user.created", "users", userId);
-    } else if (user.email !== email || user.name !== name) {
-      await ctx.db.patch(user._id, { email, name, updatedAt: now });
+    } else if (
+      user.email !== email ||
+      user.name !== name ||
+      (timezoneOffsetMinutes !== undefined && user.timezoneOffsetMinutes !== timezoneOffsetMinutes) ||
+      (args.timezone !== undefined && user.timezone !== args.timezone)
+    ) {
+      await ctx.db.patch(user._id, {
+        email,
+        name,
+        ...(timezoneOffsetMinutes !== undefined ? { timezoneOffsetMinutes } : {}),
+        ...(args.timezone !== undefined ? { timezone: args.timezone } : {}),
+        updatedAt: now,
+      });
     }
 
     // Backfill for accounts created before email-in capture existed.
@@ -156,6 +178,20 @@ export const getCurrent = internalQuery({
   args: {},
   handler: async (ctx) => {
     return await getCurrentUser(ctx);
+  },
+});
+
+/** Recent audit-log entries (Settings → Data): what the system did and when. */
+export const recentAudit = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) return [];
+    return await ctx.db
+      .query("auditLog")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .order("desc")
+      .take(50);
   },
 });
 

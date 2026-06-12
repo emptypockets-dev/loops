@@ -10,6 +10,7 @@ import {
   ArchiveRestore,
   ArrowRight,
   CheckSquare,
+  Clock,
   Loader2,
   Mail,
   MoreHorizontal,
@@ -18,7 +19,7 @@ import {
   Timer,
   Trash2,
 } from "lucide-react";
-import { formatAgo } from "@/lib/dates";
+import { formatAgo, formatDateShort, morningInDays } from "@/lib/dates";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
@@ -27,6 +28,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ClassificationBadge } from "@/components/app/classification-badge";
@@ -40,6 +44,8 @@ export function InboxItemCard({ item }: { item: Doc<"inboxItems"> }) {
   const archive = useMutation(api.inboxItems.archive);
   const unarchive = useMutation(api.inboxItems.unarchive);
   const remove = useMutation(api.inboxItems.remove);
+  const snooze = useMutation(api.inboxItems.snooze);
+  const unsnooze = useMutation(api.inboxItems.unsnooze);
 
   const [classifying, setClassifying] = useState(false);
   const [drafting, setDrafting] = useState(false);
@@ -49,6 +55,13 @@ export function InboxItemCard({ item }: { item: Doc<"inboxItems"> }) {
   const isArchived = item.status === "archived";
   const isConverted = item.status === "converted";
   const hasClassification = item.classifiedBy !== undefined;
+  const isSnoozed = item.snoozedUntil !== undefined && item.snoozedUntil > Date.now();
+
+  const snoozeFor = (days: number, label: string) => {
+    void snooze({ id: item._id, until: morningInDays(days) })
+      .then(() => toast.success(`Snoozed ${label}. It'll come back on its own.`))
+      .catch(() => toast.error("Couldn't snooze it."));
+  };
 
   const runClassify = async () => {
     setClassifying(true);
@@ -121,6 +134,11 @@ export function InboxItemCard({ item }: { item: Doc<"inboxItems"> }) {
               <Archive aria-hidden="true" /> archived
             </Badge>
           )}
+          {isSnoozed && (
+            <Badge variant="outline">
+              <Clock aria-hidden="true" /> snoozed until {formatDateShort(item.snoozedUntil!)}
+            </Badge>
+          )}
           <span className="ml-auto text-xs text-muted-foreground">{formatAgo(item.createdAt)}</span>
         </div>
         <h3 className="font-medium leading-snug">{item.cleanedTitle || item.rawText}</h3>
@@ -184,6 +202,33 @@ export function InboxItemCard({ item }: { item: Doc<"inboxItems"> }) {
             <DropdownMenuItem onSelect={() => setEditOpen(true)}>
               <PenLine /> Edit / override
             </DropdownMenuItem>
+            {!isArchived &&
+              (isSnoozed ? (
+                <DropdownMenuItem
+                  onSelect={() =>
+                    void unsnooze({ id: item._id }).then(() => toast.success("Back in the inbox."))
+                  }
+                >
+                  <Clock /> Unsnooze
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <Clock /> Snooze
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    <DropdownMenuItem onSelect={() => snoozeFor(1, "until tomorrow")}>
+                      Until tomorrow 9am
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => snoozeFor(3, "for 3 days")}>
+                      For 3 days
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => snoozeFor(7, "for a week")}>
+                      For a week
+                    </DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              ))}
             {isArchived ? (
               <DropdownMenuItem onSelect={() => void unarchive({ id: item._id })}>
                 <ArchiveRestore /> Restore

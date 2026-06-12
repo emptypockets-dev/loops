@@ -20,7 +20,10 @@ export function EnsureUser({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!isAuthenticated || started.current) return;
     started.current = true;
-    ensure({})
+    ensure({
+      timezoneOffsetMinutes: new Date().getTimezoneOffset(),
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    })
       .then(() => setReady(true))
       .catch((error) => {
         console.error("users.ensure failed", error);

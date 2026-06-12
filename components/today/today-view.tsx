@@ -13,6 +13,7 @@ import { LoadingState } from "@/components/app/loading-state";
 import { ApprovalDraftCard } from "./approval-draft-card";
 import { BrainDumpCard } from "./brain-dump-card";
 import { CalendarSection } from "./calendar-section";
+import { ResolvedDraftsSheet } from "./resolved-drafts-sheet";
 import { DailyBriefCard } from "./daily-brief-card";
 import { FiveMinuteStartCard } from "./five-minute-start-card";
 import { OpenLoopsSection } from "./open-loops-section";
@@ -29,6 +30,14 @@ export function TodayView() {
   const loops = useQuery(api.loops.list);
   const openTasks = useQuery(api.tasks.listOpen);
   const hasInboxItems = useQuery(api.inboxItems.hasAny);
+  const localMidnightMs = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  }, []);
+  const tasksDoneToday = useQuery(api.tasks.doneSince, { sinceMs: localMidnightMs });
+  const recentRuns = useQuery(api.loops.recentRuns, { limit: 20 });
+  const runsToday = recentRuns?.filter((r) => r.startedAt >= localMidnightMs).length ?? 0;
   const generateBrief = useAction(api.ai.generateDailyBrief);
   const [generating, setGenerating] = useState(false);
 
@@ -124,7 +133,10 @@ export function TodayView() {
 
       <ErrorBoundary label="drafts awaiting approval">
         <section aria-label="Drafts awaiting approval" className="space-y-3">
-          <SectionHeading>Drafts awaiting your approval</SectionHeading>
+          <div className="flex items-center justify-between gap-2">
+            <SectionHeading>Drafts awaiting your approval</SectionHeading>
+            <ResolvedDraftsSheet />
+          </div>
           {pendingDrafts === undefined ? (
             <LoadingState label="Loading drafts…" rows={1} />
           ) : pendingDrafts.length === 0 ? (
@@ -150,7 +162,9 @@ export function TodayView() {
         </section>
       </ErrorBoundary>
 
-      {loops !== undefined && <ShutdownCta loops={loops} />}
+      {loops !== undefined && (
+        <ShutdownCta loops={loops} runsToday={runsToday} tasksDoneToday={tasksDoneToday ?? 0} />
+      )}
     </div>
   );
 }

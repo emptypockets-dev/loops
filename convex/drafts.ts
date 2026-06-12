@@ -31,6 +31,26 @@ export const listPending = query({
   },
 });
 
+/**
+ * Recently resolved drafts (approved / rejected / sent) — the history view,
+ * so an approved email draft is still retrievable when you're ready to send.
+ */
+export const listResolved = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) return [];
+    const all = await ctx.db
+      .query("drafts")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .collect();
+    return all
+      .filter((d) => d.status !== "draft")
+      .sort((a, b) => b.updatedAt - a.updatedAt)
+      .slice(0, 25);
+  },
+});
+
 /** Drafts are editable before they take effect. */
 export const updateContent = mutation({
   args: { id: v.id("drafts"), title: v.string(), body: v.string() },

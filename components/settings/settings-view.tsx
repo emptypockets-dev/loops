@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Check, Download, Loader2, ShieldCheck } from "lucide-react";
 import { APPROVAL_RULES, OPENAI_MODEL, TONE_PREAMBLE } from "@/lib/constants";
 import { INTEGRATION_DESCRIPTORS } from "@/lib/integrations/provider";
-import { localToday } from "@/lib/dates";
+import { formatAgo, localToday } from "@/lib/dates";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -244,6 +244,42 @@ function IntegrationsSection() {
   );
 }
 
+function AuditLogSection() {
+  const entries = useQuery(api.users.recentAudit);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Recent activity</CardTitle>
+        <CardDescription>
+          The audit log: every consequential action — yours and the AI's — with nothing hidden.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {entries === undefined ? (
+          <LoadingState label="Loading activity…" rows={1} />
+        ) : entries.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nothing logged yet.</p>
+        ) : (
+          <ul className="space-y-1.5">
+            {entries.map((entry) => (
+              <li
+                key={entry._id}
+                className="flex items-baseline justify-between gap-3 border-b py-1.5 text-sm last:border-b-0"
+              >
+                <code className="rounded bg-muted px-1.5 py-0.5 text-xs">{entry.action}</code>
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {formatAgo(entry.createdAt)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function DataSection() {
   const convex = useConvex();
   const [exporting, setExporting] = useState(false);
@@ -325,8 +361,9 @@ export function SettingsView() {
           <EmailCaptureCard />
           <IntegrationsSection />
         </TabsContent>
-        <TabsContent value="data">
+        <TabsContent value="data" className="space-y-4">
           <DataSection />
+          <AuditLogSection />
         </TabsContent>
       </Tabs>
     </div>

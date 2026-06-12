@@ -16,8 +16,8 @@ The AI does **not** run your life. It catches, organizes, summarizes, drafts, re
 
 | Screen | What it does |
 | --- | --- |
-| **Today** | Daily Brief (calendar-aware), Top 3 outcomes, 5-minute starts, open loops needing attention, drafts awaiting approval, today's Google Calendar + Block time, Evening Shutdown CTA |
-| **Inbox** | Universal capture, AI classify (with manual override), convert to task, archive/delete |
+| **Today** | Daily Brief (calendar-aware), Top 3 outcomes, 5-minute starts, open loops + task management (in-progress/waiting/drop), drafts awaiting approval with resolved history, today's Google Calendar + Block time, Evening Shutdown CTA with a calm momentum line |
+| **Inbox** | Universal capture, AI classify (with manual override), full-text search, snooze ("not now" without guilt), convert to task, archive/delete |
 | **Loops** | Recurring life protocols: create/edit/run, check off steps, every run ends with **“This counted.”** |
 | **Review** | Calm weekly review: completed, still open, can be dropped, needs a next action, patterns, loop improvements |
 | **Settings** | Profile, AI preferences (incl. opt-in auto-archive), approval rules, integrations (all “Coming soon”), data export |
@@ -72,7 +72,7 @@ npm run dev      # terminal 2 — Next.js on http://localhost:3000
 
 Sign in → a Convex user record is upserted idempotently and the eight default loops are seeded exactly once (guarded by `users.defaultLoopsSeededAt`; repeat sign-ins never duplicate).
 
-`npm run build` / `npm run typecheck` serve as the smoke test.
+`npm run build` / `npm run typecheck` serve as the smoke test; `npm test` runs the pure-logic suites (email parsing, templates, calendar parsing, compose links, dates/loop logic) with zero test-framework dependencies.
 
 ### 5. Email-in capture (forward anything to your Loops address) — optional
 
@@ -198,7 +198,7 @@ Run it for two weeks before judging the app.
 - **Approval-first**: `draftResponseOrAction` always persists a `draft`; nothing is ever sent. The approval matrix lives in `lib/constants/approval.ts` (outward-facing types + any medium/high-risk draft require explicit approval). Approving an email/calendar/note marks it ready for *you* to use (with a copy button); approving a task draft creates the task.
 - **AI vs. user state** is visually distinct everywhere via `ClassificationBadge` — “AI suggested” (sparkles, dashed) vs. “Confirmed by you” (check), icon + text, never color alone.
 - **Constants** (`lib/constants/`): canonical categories, enums, tone preamble, default-loop seeds, approval rules. Convex schema validators, zod schemas, prompts, and screens all read from these.
-- **Crons** (`convex/crons.ts`): daily-brief generation (05:00 UTC) and the Sunday weekly-review generation (16:00 UTC). When outbound email is configured, both deliver to the user's own address (per-user opt-out in Settings → Profile); notification emails go only to the user, never on their behalf.
+- **Scheduling** (`convex/crons.ts`): one timezone-aware hourly tick. Each user gets their Daily Brief at **their** local 5am (skipped if one already exists for that local day) and their Weekly Review Sunday at **their** local 4pm — the browser's timezone offset is captured at every sign-in, so DST self-corrects; users without an offset fall back to UTC. When outbound email is configured, both deliver to the user's own address (per-user opt-out in Settings → Profile); notification emails go only to the user, never on their behalf.
 - **Audit log**: consequential mutations (convert, delete, approve/reject, loop runs, seeding, AI writes) append `auditLog` entries.
 - **Email-in capture** is live: a Convex HTTP action (`convex/http.ts`) receives provider webhooks, resolves the user by their rotatable capture token, stores the email as an inbox item, and schedules auto-classification (which respects the auto-archive opt-in). Forwarded items are marked “forwarded email” in the Inbox.
 - **Google Calendar** is live via Clerk-managed OAuth (`convex/lib/googleCalendar.ts` + `convex/calendar.ts`): tokens are fetched per-request from Clerk's Backend API and never stored. Reads power Today and the Daily Brief; writes are approval-first (manual Block time, or "Add to calendar…" on an approved AI draft → status `sent`). All outward writes are audit-logged.
@@ -206,13 +206,16 @@ Run it for two weeks before judging the app.
 
 ## Assumptions (chosen for shippability)
 
-- **Dates**: calendar days are `YYYY-MM-DD` strings. On-demand briefs/reviews use the browser's local date; cron-generated ones use the UTC day. Weeks start Monday.
+- **Dates**: calendar days are `YYYY-MM-DD` strings; weeks start Monday. Both on-demand and scheduled briefs use the user's local day (via the browser timezone offset stored at sign-in).
+- **Snooze** uses client-side filtering: a snoozed item reappears in the Active tab on the next render after its wake time (no server push at the exact minute). Snoozed items are excluded from Daily Brief context — parked means parked.
+- The Inbox list shows the 200 most recent items; full-text search covers everything beyond that.
 - Unclassified inbox items carry a placeholder category (`Someday`) that the UI hides until the item is classified (schema requires the field).
 - The reviews table includes a `needsNextAction` array beyond the original spec because the Review screen has that section.
 - An extra optional `classifiedBy` (`ai` | `user`) field on inbox items drives the AI-suggested vs. confirmed distinction.
 - Monthly loop cadence approximates to 30 days for the next-run nudge.
 - “Voice note” capture is a disabled placeholder button; real capture is text or forwarded email.
-- Email-in attachments are ignored (text only); bodies are truncated at 15k characters; rate limiting beyond the unguessable token + optional webhook secret is future hardening.
+- Email-in attachments are ignored (text only); bodies are truncated at 15k characters; a flood guard caps email captures at 30/hour per user (rotate the address in Settings if it ever leaks).
+- Approved **email** drafts open in a prefilled Gmail compose window (no Google scope needed — it's just a URL); drafts too long for a URL fall back to the copy button. Loops never sends mail on your behalf.
 - Forwarded emails auto-classify on arrival (the approval-first rules explicitly allow automatic classification; consequential actions still require approval).
 - Calendar reads/writes use the **primary** calendar only; events created by Loops are simple timed blocks (no attendees, no recurrence). Cron-generated briefs window the calendar to the UTC day; on-demand briefs use the browser's timezone offset.
 - The weekly cron *generates* the review (rather than only nudging) so it's waiting on the Review screen Sunday evening.

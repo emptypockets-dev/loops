@@ -15,6 +15,17 @@ export const getForDate = query({
   },
 });
 
+/** Internal: does a brief already exist for this user+date? (cron idempotency) */
+export const getForUserDate = internalQuery({
+  args: { userId: v.id("users"), date: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("dailyBriefs")
+      .withIndex("by_user_date", (q) => q.eq("userId", args.userId).eq("date", args.date))
+      .unique();
+  },
+});
+
 /**
  * Internal: everything the daily-brief prompt needs, gathered server-side.
  * Takes userId because the cron has no user identity; never exposed publicly.
@@ -58,7 +69,12 @@ export const gatherContext = internalQuery({
           ageDays: Math.floor((Date.now() - t.createdAt) / (24 * 60 * 60 * 1000)),
         })),
       unprocessedInbox: inboxItems
-        .filter((i) => i.status === "unprocessed" || i.status === "classified")
+        .filter(
+          (i) =>
+            (i.status === "unprocessed" || i.status === "classified") &&
+            // Snoozed items are parked on purpose — keep them out of the brief.
+            (i.snoozedUntil === undefined || i.snoozedUntil <= Date.now())
+        )
         .slice(0, 40)
         .map((i) => ({
           title: i.cleanedTitle || i.rawText.slice(0, 120),

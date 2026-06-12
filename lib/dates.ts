@@ -48,6 +48,14 @@ export function formatDateShort(ts: number): string {
   return new Date(ts).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
+/** Timestamp for 9:00am local time, `days` days from today (snooze targets). */
+export function morningInDays(days: number, now: Date = new Date()): number {
+  const d = new Date(now);
+  d.setDate(d.getDate() + days);
+  d.setHours(9, 0, 0, 0);
+  return d.getTime();
+}
+
 /** "Jun 9 – Jun 15" style display for a YYYY-MM-DD week range. */
 export function formatWeekRange(weekStart: string, weekEnd: string): string {
   const fmt = (s: string) =>

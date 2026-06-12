@@ -28,6 +28,10 @@ export default defineSchema({
     // Notification emails (to the user themselves). Undefined = enabled.
     briefEmailEnabled: v.optional(v.boolean()),
     reviewEmailEnabled: v.optional(v.boolean()),
+    // Captured from the browser on sign-in so scheduled briefs land at the
+    // user's actual 5am. Offset is Date.prototype.getTimezoneOffset().
+    timezoneOffsetMinutes: v.optional(v.number()),
+    timezone: v.optional(v.string()),
     // Idempotency marker for default-loop seeding — set once, never re-seeded.
     defaultLoopsSeededAt: v.optional(v.number()),
     // Secret for the email-in capture address (capture+<token>@…). Rotatable.
@@ -57,12 +61,18 @@ export default defineSchema({
     emailFrom: v.optional(v.string()),
     emailSubject: v.optional(v.string()),
     emailMessageId: v.optional(v.string()),
+    // "Not now" without guilt: hidden from the active list until this time.
+    snoozedUntil: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
     archivedAt: v.optional(v.number()),
   })
     .index("by_user", ["userId"])
-    .index("by_user_status", ["userId", "status"]),
+    .index("by_user_status", ["userId", "status"])
+    .searchIndex("search_text", {
+      searchField: "rawText",
+      filterFields: ["userId"],
+    }),
 
   loops: defineTable({
     userId: v.id("users"),

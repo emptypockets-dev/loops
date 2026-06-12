@@ -21,7 +21,7 @@ async function getOwnedItem(
   return { user, item };
 }
 
-/** All inbox items for the signed-in user, newest first. */
+/** All inbox items for the signed-in user, newest first (capped — use search beyond that). */
 export const list = query({
   args: {},
   handler: async (ctx) => {
@@ -31,7 +31,44 @@ export const list = query({
       .query("inboxItems")
       .withIndex("by_user", (q) => q.eq("userId", user._id))
       .order("desc")
-      .collect();
+      .take(200);
+  },
+});
+
+/** Full-text search over captures (typed notes and forwarded emails alike). */
+export const search = query({
+  args: { query: v.string() },
+  handler: async (ctx, args) => {
+    const user = await getCurrentUser(ctx);
+    const needle = args.query.trim();
+    if (!user || !needle) return [];
+    return await ctx.db
+      .query("inboxItems")
+      .withSearchIndex("search_text", (q) => q.search("rawText", needle).eq("userId", user._id))
+      .take(20);
+  },
+});
+
+/** Park an item until a future time. Snoozing is allowed — that's the point. */
+export const snooze = mutation({
+  args: { id: v.id("inboxItems"), until: v.number() },
+  handler: async (ctx, args) => {
+    const { user } = await getOwnedItem(ctx, args.id);
+    if (args.until <= Date.now()) throw new Error("Pick a time in the future.");
+    await ctx.db.patch(args.id, { snoozedUntil: args.until, updatedAt: Date.now() });
+    await logAudit(ctx, user._id, "inboxItem.snoozed", "inboxItems", args.id, {
+      until: args.until,
+    });
+  },
+});
+
+export const unsnooze = mutation({
+  args: { id: v.id("inboxItems") },
+  handler: async (ctx, args) => {
+    const { user } = await getOwnedItem(ctx, args.id);
+    // Patching to undefined removes the field — intentional here.
+    await ctx.db.patch(args.id, { snoozedUntil: undefined, updatedAt: Date.now() });
+    await logAudit(ctx, user._id, "inboxItem.unsnoozed", "inboxItems", args.id);
   },
 });
 
@@ -195,7 +232,7 @@ export const captureFromEmail = internalMutation({
     args
   ): Promise<
     | { ok: true; itemId: Id<"inboxItems">; deduplicated: boolean }
-    | { ok: false; reason: "unknown_token" }
+    | { ok: false; reason: "unknown_token" | "rate_limited" }
   > => {
     const user = await ctx.db
       .query("users")
@@ -207,18 +244,30 @@ export const captureFromEmail = internalMutation({
       return { ok: false, reason: "unknown_token" };
     }
 
+    const recent = await ctx.db
+      .query("inboxItems")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .order("desc")
+      .take(50);
+
     // Idempotency: providers retry on timeouts. Same Message-ID within the
     // recent window → treat as already captured.
     if (args.messageId) {
-      const recent = await ctx.db
-        .query("inboxItems")
-        .withIndex("by_user", (q) => q.eq("userId", user._id))
-        .order("desc")
-        .take(50);
       const existing = recent.find((item) => item.emailMessageId === args.messageId);
       if (existing) {
         return { ok: true, itemId: existing._id, deduplicated: true };
       }
+    }
+
+    // Flood guard: if a capture address leaks to a mailing list, cap the
+    // damage. Rotating the address from Settings is the real fix.
+    const oneHourAgo = Date.now() - 60 * 60 * 1000;
+    const capturedLastHour = recent.filter(
+      (item) => item.source === "integration" && item.createdAt >= oneHourAgo
+    ).length;
+    if (capturedLastHour >= 30) {
+      console.warn(`Email capture rate limit hit for user ${user._id}`);
+      return { ok: false, reason: "rate_limited" };
     }
 
     const now = Date.now();

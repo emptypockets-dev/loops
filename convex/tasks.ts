@@ -32,6 +32,20 @@ export const listOpen = query({
   },
 });
 
+/** Count of tasks marked done since a client-supplied time (local midnight). */
+export const doneSince = query({
+  args: { sinceMs: v.number() },
+  handler: async (ctx, args) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) return 0;
+    const done = await ctx.db
+      .query("tasks")
+      .withIndex("by_user_status", (q) => q.eq("userId", user._id).eq("status", "done"))
+      .collect();
+    return done.filter((t) => t.updatedAt >= args.sinceMs).length;
+  },
+});
+
 export const setStatus = mutation({
   args: { id: v.id("tasks"), status: literals(TASK_STATUSES) },
   handler: async (ctx, args) => {
