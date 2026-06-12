@@ -38,6 +38,15 @@ export default defineSchema({
     captureToken: v.optional(v.string()),
     // Set when the user hides the getting-started checklist (or finishes it).
     onboardingDismissedAt: v.optional(v.number()),
+    // Chosen during Evening Shutdown; surfaced the next morning and honored
+    // as outcome #1 by that day's brief. forDate is a local YYYY-MM-DD.
+    nextFirstAction: v.optional(
+      v.object({
+        text: v.string(),
+        forDate: v.string(),
+        taskId: v.optional(v.id("tasks")),
+      })
+    ),
     createdAt: v.number(),
     updatedAt: v.number(),
   })

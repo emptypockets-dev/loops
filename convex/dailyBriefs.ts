@@ -31,9 +31,20 @@ export const getForUserDate = internalQuery({
  * Takes userId because the cron has no user identity; never exposed publicly.
  */
 export const gatherContext = internalQuery({
-  args: { userId: v.id("users") },
+  args: {
+    userId: v.id("users"),
+    // When provided, includes the shutdown-chosen first action for that day.
+    date: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const user = await ctx.db.get(args.userId);
+    const chosenFirstAction =
+      args.date !== undefined &&
+      user?.nextFirstAction !== undefined &&
+      user.nextFirstAction.forDate === args.date
+        ? user.nextFirstAction.text
+        : null;
 
     const [tasks, inboxItems, loops, runs] = await Promise.all([
       ctx.db
@@ -58,6 +69,7 @@ export const gatherContext = internalQuery({
     const loopNames = new Map(loops.map((l) => [l._id, l.name]));
 
     return {
+      chosenFirstAction,
       openTasks: tasks
         .filter((t) => t.status === "todo" || t.status === "doing" || t.status === "waiting")
         .slice(0, 40)

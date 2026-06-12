@@ -247,6 +247,63 @@ export const dismissOnboarding = mutation({
   },
 });
 
+/** Evening Shutdown: choose tomorrow's first action (overwrites any previous). */
+export const setFirstAction = mutation({
+  args: {
+    text: v.string(),
+    forDate: v.string(),
+    taskId: v.optional(v.id("tasks")),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    const text = args.text.trim();
+    if (!text) throw new Error("Name the first action — even roughly.");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(args.forDate)) throw new Error("Invalid date.");
+    if (args.taskId) {
+      const task = await ctx.db.get(args.taskId);
+      if (!task || task.userId !== user._id) throw new Error("Task not found.");
+    }
+    await ctx.db.patch(user._id, {
+      nextFirstAction: { text, forDate: args.forDate, taskId: args.taskId },
+      updatedAt: Date.now(),
+    });
+    await logAudit(ctx, user._id, "firstAction.chosen", "users", user._id, {
+      forDate: args.forDate,
+    });
+  },
+});
+
+/** Morning: the first action happened. Optionally completes the linked task. */
+export const completeFirstAction = mutation({
+  args: { markTaskDone: v.boolean() },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    const firstAction = user.nextFirstAction;
+    if (!firstAction) return;
+    if (args.markTaskDone && firstAction.taskId) {
+      const task = await ctx.db.get(firstAction.taskId);
+      if (task && task.userId === user._id && task.status !== "done") {
+        await ctx.db.patch(task._id, { status: "done", updatedAt: Date.now() });
+      }
+    }
+    await ctx.db.patch(user._id, { nextFirstAction: undefined, updatedAt: Date.now() });
+    await logAudit(ctx, user._id, "firstAction.completed", "users", user._id, {
+      text: firstAction.text.slice(0, 120),
+    });
+  },
+});
+
+/** "Not today" — clear without judgement. */
+export const clearFirstAction = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const user = await requireUser(ctx);
+    if (!user.nextFirstAction) return;
+    await ctx.db.patch(user._id, { nextFirstAction: undefined, updatedAt: Date.now() });
+    await logAudit(ctx, user._id, "firstAction.cleared", "users", user._id);
+  },
+});
+
 /** Recent audit-log entries (Settings → Data): what the system did and when. */
 export const recentAudit = query({
   args: {},

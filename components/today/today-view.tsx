@@ -12,6 +12,7 @@ import { ErrorBoundary } from "@/components/app/error-boundary";
 import { LoadingState } from "@/components/app/loading-state";
 import { ApprovalDraftCard } from "./approval-draft-card";
 import { CalendarSection } from "./calendar-section";
+import { FirstActionCard } from "./first-action-card";
 import { OnboardingCard } from "./onboarding-card";
 import { ResolvedDraftsSheet } from "./resolved-drafts-sheet";
 import { UnstuckCard } from "./unstuck-card";
@@ -75,6 +76,10 @@ export function TodayView() {
         <h1 className="text-2xl font-semibold tracking-tight">Today</h1>
         <p className="text-muted-foreground">{dateLabel} — what matters now, nothing more.</p>
       </header>
+
+      <ErrorBoundary label="your first action">
+        <FirstActionCard />
+      </ErrorBoundary>
 
       <ErrorBoundary label="getting started">
         <OnboardingCard />
@@ -167,7 +172,12 @@ export function TodayView() {
       </ErrorBoundary>
 
       {loops !== undefined && (
-        <ShutdownCta loops={loops} runsToday={runsToday} tasksDoneToday={tasksDoneToday ?? 0} />
+        <ShutdownCta
+          loops={loops}
+          openTasks={openTasks ?? []}
+          runsToday={runsToday}
+          tasksDoneToday={tasksDoneToday ?? 0}
+        />
       )}
     </div>
   );

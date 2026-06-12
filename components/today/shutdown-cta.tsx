@@ -1,12 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import type { Doc } from "@/convex/_generated/dataModel";
 import { Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { LoopRunDialog } from "@/components/loops/loop-run-dialog";
+import { ShutdownFlow } from "./shutdown-flow";
 
 function momentumLine(runsToday: number, tasksDoneToday: number): string | null {
   if (runsToday === 0 && tasksDoneToday === 0) return null;
@@ -16,13 +15,15 @@ function momentumLine(runsToday: number, tasksDoneToday: number): string | null 
   return `Today so far: ${parts.join(" · ")}. It counted.`;
 }
 
-/** End-of-day re-entry point: run the Evening Shutdown loop from Today. */
+/** End-of-day re-entry point: the guided shutdown ritual, from Today. */
 export function ShutdownCta({
   loops,
+  openTasks,
   runsToday,
   tasksDoneToday,
 }: {
   loops: Doc<"loops">[];
+  openTasks: Doc<"tasks">[];
   runsToday: number;
   tasksDoneToday: number;
 }) {
@@ -40,18 +41,17 @@ export function ShutdownCta({
             {momentum ?? "Close the day on purpose so your head doesn't have to carry it overnight."}
           </p>
         </div>
-        {shutdownLoop ? (
-          <Button variant="outline" onClick={() => setOpen(true)}>
-            Run Evening Shutdown
-          </Button>
-        ) : (
-          <Button variant="outline" asChild>
-            <Link href="/loops">Open Loops</Link>
-          </Button>
-        )}
+        <Button variant="outline" onClick={() => setOpen(true)}>
+          Run Evening Shutdown
+        </Button>
       </CardContent>
-      {shutdownLoop && open && (
-        <LoopRunDialog loop={shutdownLoop} open={open} onOpenChange={setOpen} />
+      {open && (
+        <ShutdownFlow
+          loop={shutdownLoop}
+          openTasks={openTasks}
+          open={open}
+          onOpenChange={setOpen}
+        />
       )}
     </Card>
   );

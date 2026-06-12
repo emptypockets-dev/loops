@@ -148,7 +148,7 @@ async function generateBriefForUser(
   tzOffsetMinutes: number
 ): Promise<{ ok: true; brief: BriefData } | { ok: false; error: string }> {
   const userId = user._id;
-  const context = await ctx.runQuery(internal.dailyBriefs.gatherContext, { userId });
+  const context = await ctx.runQuery(internal.dailyBriefs.gatherContext, { userId, date });
   const calendarToday = await gatherCalendarForBrief(user, date, tzOffsetMinutes);
   const result = await callOpenAIJson({
     system: DAILY_BRIEF_SYSTEM_PROMPT,
