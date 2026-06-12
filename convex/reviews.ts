@@ -35,7 +35,7 @@ export const gatherContext = internalQuery({
   handler: async (ctx, args) => {
     const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
 
-    const [tasks, inboxItems, loops, runs] = await Promise.all([
+    const [tasks, inboxItems, loops, runs, recentNudges] = await Promise.all([
       ctx.db
         .query("tasks")
         .withIndex("by_user", (q) => q.eq("userId", args.userId))
@@ -53,7 +53,14 @@ export const gatherContext = internalQuery({
         .withIndex("by_user", (q) => q.eq("userId", args.userId))
         .order("desc")
         .take(60),
+      ctx.db
+        .query("nudges")
+        .withIndex("by_user", (q) => q.eq("userId", args.userId))
+        .order("desc")
+        .take(30),
     ]);
+
+    const weekNudges = recentNudges.filter((n) => n.createdAt >= weekAgo);
 
     const loopNames = new Map(loops.map((l) => [l._id, l.name]));
 
@@ -85,6 +92,12 @@ export const gatherContext = internalQuery({
       loops: loops
         .filter((l) => l.isActive)
         .map((l) => ({ name: l.name, cadence: l.cadence })),
+      // Hard moments, counted kindly: how often the Unstuck button was pressed.
+      unstuckMoments: {
+        count: weekNudges.length,
+        actedOn: weekNudges.filter((n) => n.acted).length,
+        examples: weekNudges.slice(0, 3).map((n) => n.suggestion),
+      },
     };
   },
 });

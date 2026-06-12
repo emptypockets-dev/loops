@@ -191,4 +191,16 @@ export default defineSchema({
     metadata: v.any(),
     createdAt: v.number(),
   }).index("by_user", ["userId"]),
+
+  // "I'm stuck" moments: one pressed button → one suggested action.
+  // Kept as data so the weekly review can notice hard moments kindly.
+  nudges: defineTable({
+    userId: v.id("users"),
+    suggestion: v.string(),
+    reason: v.string(),
+    fiveMinuteVersion: v.string(),
+    reassurance: v.string(),
+    acted: v.boolean(),
+    createdAt: v.number(),
+  }).index("by_user", ["userId"]),
 });

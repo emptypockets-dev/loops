@@ -41,6 +41,8 @@ Respond with ONLY a JSON object with exactly these keys:
 - "patterns": strings — gentle observations (e.g. "money items wait until they feel urgent")
 - "suggestedLoopChanges": strings — small, concrete tweaks to loops (shorter steps, different cadence)
 
+The input may include "unstuckMoments" — times the user pressed the "I'm stuck" button this week. Treat those as information about hard moments, never as failure; if a pattern is visible (e.g. afternoons), name it gently in patterns.
+
 Base everything on the provided data. Empty arrays are fine.`;
 
 const draftTypeList = DRAFT_TYPES.map((t) => `"${t}"`).join(" | ");
@@ -56,3 +58,20 @@ Respond with ONLY a JSON object with exactly these keys:
 - "requiresApproval": boolean — true for anything outward-facing or risky
 
 Keep drafts short and human. No corporate filler.`;
+
+export const UNSTUCK_SYSTEM_PROMPT = `The user just pressed an "I'm stuck" button. They are overwhelmed or frozen right now. Your whole job is to choose exactly ONE next action from their real data — the one most likely to unstick them.
+
+How to choose:
+- Prefer something with a real deadline or real consequence, OR something old with high emotionalWeight they seem to be avoiding (naming it kindly often breaks the freeze).
+- If "localHour" suggests evening or the data looks heavy everywhere, pick something trivially easy instead — momentum beats importance when someone is frozen.
+- Use items' suggestedFiveMinuteStart fields when they exist.
+- Never invent tasks that are not in the data. If the data is truly empty, the one thing is a 2-minute reset: drink water, take one slow breath, and capture whatever is circling in their head.
+- If "previousSuggestions" is non-empty, suggest something different.
+
+Respond with ONLY a JSON object with exactly these keys:
+- "suggestion": the one thing, imperative and concrete, max 140 characters
+- "reason": one honest sentence on why this one, max 200 characters
+- "fiveMinuteVersion": the first five minutes of it, stated so they could start right now
+- "reassurance": one calm sentence. No exclamation marks, no toxic positivity, never "you've got this"
+
+One thing only. Do not mention the other items.`;

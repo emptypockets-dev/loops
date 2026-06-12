@@ -144,7 +144,7 @@ export const exportData = query({
     const user = await getCurrentUser(ctx);
     if (!user) return null;
 
-    const [inboxItems, loops, loopRuns, tasks, dailyBriefs, reviews, drafts, integrations, auditLog] =
+    const [inboxItems, loops, loopRuns, tasks, dailyBriefs, reviews, drafts, integrations, auditLog, nudges] =
       await Promise.all([
         ctx.db.query("inboxItems").withIndex("by_user", (q) => q.eq("userId", user._id)).collect(),
         ctx.db.query("loops").withIndex("by_user", (q) => q.eq("userId", user._id)).collect(),
@@ -155,6 +155,7 @@ export const exportData = query({
         ctx.db.query("drafts").withIndex("by_user", (q) => q.eq("userId", user._id)).collect(),
         ctx.db.query("integrations").withIndex("by_user", (q) => q.eq("userId", user._id)).collect(),
         ctx.db.query("auditLog").withIndex("by_user", (q) => q.eq("userId", user._id)).collect(),
+        ctx.db.query("nudges").withIndex("by_user", (q) => q.eq("userId", user._id)).collect(),
       ]);
 
     return {
@@ -169,6 +170,7 @@ export const exportData = query({
       drafts,
       integrations,
       auditLog,
+      nudges,
     };
   },
 });

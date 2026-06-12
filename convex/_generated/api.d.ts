@@ -27,6 +27,7 @@ import type * as lib_googleCalendar from "../lib/googleCalendar.js";
 import type * as lib_postmark from "../lib/postmark.js";
 import type * as lib_validators from "../lib/validators.js";
 import type * as loops from "../loops.js";
+import type * as nudges from "../nudges.js";
 import type * as reviews from "../reviews.js";
 import type * as tasks from "../tasks.js";
 import type * as users from "../users.js";
@@ -54,6 +55,7 @@ declare const fullApi: ApiFromModules<{
   "lib/postmark": typeof lib_postmark;
   "lib/validators": typeof lib_validators;
   loops: typeof loops;
+  nudges: typeof nudges;
   reviews: typeof reviews;
   tasks: typeof tasks;
   users: typeof users;

@@ -64,3 +64,11 @@ export const draftSchema = z.object({
   requiresApproval: z.boolean(),
 });
 export type DraftPayload = z.infer<typeof draftSchema>;
+
+export const unstuckSchema = z.object({
+  suggestion: trimmed.pipe(z.string().min(1).max(160)),
+  reason: trimmed.pipe(z.string().min(1).max(240)),
+  fiveMinuteVersion: trimmed.pipe(z.string().min(1).max(240)),
+  reassurance: trimmed.pipe(z.string().min(1).max(200)),
+});
+export type UnstuckPayload = z.infer<typeof unstuckSchema>;

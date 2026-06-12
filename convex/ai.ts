@@ -8,12 +8,14 @@ import {
   classificationSchema,
   dailyBriefSchema,
   draftSchema,
+  unstuckSchema,
   weeklyReviewSchema,
 } from "../lib/ai/schemas";
 import {
   CLASSIFY_SYSTEM_PROMPT,
   DAILY_BRIEF_SYSTEM_PROMPT,
   DRAFT_SYSTEM_PROMPT,
+  UNSTUCK_SYSTEM_PROMPT,
   WEEKLY_REVIEW_SYSTEM_PROMPT,
 } from "../lib/ai/prompts";
 import type { AiResult } from "../lib/ai/types";
@@ -296,6 +298,63 @@ export const generateWeeklyReview = action({
     if (!user) return { ok: false, error: "You're not signed in." };
     const result = await generateReviewForUser(ctx, user._id, mondayOf(args.date));
     return result.ok ? { ok: true } : result;
+  },
+});
+
+// ── The Unstuck Button ───────────────────────────────────────────────────────
+
+type UnstuckResult =
+  | {
+      ok: true;
+      nudgeId: Id<"nudges">;
+      suggestion: string;
+      reason: string;
+      fiveMinuteVersion: string;
+      reassurance: string;
+    }
+  | { ok: false; error: string };
+
+/**
+ * One press → exactly one suggested action chosen from the user's real data.
+ * Deliberately fast (no calendar fetch) — the stuck moment needs an answer,
+ * not a spinner. Each suggestion is recorded so the weekly review can notice
+ * hard moments kindly.
+ */
+export const getUnstuck = action({
+  args: {
+    localHour: v.optional(v.number()),
+    previousSuggestions: v.optional(v.array(v.string())),
+  },
+  handler: async (ctx, args): Promise<UnstuckResult> => {
+    const user = await ctx.runQuery(internal.users.getCurrent, {});
+    if (!user) return { ok: false, error: "You're not signed in." };
+
+    const context = await ctx.runQuery(internal.dailyBriefs.gatherContext, {
+      userId: user._id,
+    });
+    const result = await callOpenAIJson({
+      system: UNSTUCK_SYSTEM_PROMPT,
+      payload: {
+        localHour:
+          args.localHour !== undefined
+            ? Math.max(0, Math.min(23, Math.floor(args.localHour)))
+            : null,
+        previousSuggestions: (args.previousSuggestions ?? []).slice(0, 5),
+        ...context,
+      },
+      schema: unstuckSchema,
+    });
+    if (!result.ok) return result;
+
+    const nudgeId = await ctx.runMutation(internal.nudges.create, {
+      userId: user._id,
+      suggestion: result.data.suggestion,
+      reason: result.data.reason,
+      fiveMinuteVersion: result.data.fiveMinuteVersion,
+      reassurance: result.data.reassurance,
+    });
+
+    return { ok: true, nudgeId, ...result.data };
   },
 });
 

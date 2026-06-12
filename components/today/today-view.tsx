@@ -14,6 +14,7 @@ import { ApprovalDraftCard } from "./approval-draft-card";
 import { CalendarSection } from "./calendar-section";
 import { OnboardingCard } from "./onboarding-card";
 import { ResolvedDraftsSheet } from "./resolved-drafts-sheet";
+import { UnstuckCard } from "./unstuck-card";
 import { DailyBriefCard } from "./daily-brief-card";
 import { FiveMinuteStartCard } from "./five-minute-start-card";
 import { OpenLoopsSection } from "./open-loops-section";
@@ -77,6 +78,10 @@ export function TodayView() {
 
       <ErrorBoundary label="getting started">
         <OnboardingCard />
+      </ErrorBoundary>
+
+      <ErrorBoundary label="the unstuck button">
+        <UnstuckCard />
       </ErrorBoundary>
 
       <ErrorBoundary label="the daily brief">
