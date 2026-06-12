@@ -18,6 +18,8 @@ export interface IntegrationDescriptor {
   name: string;
   description: string;
   defaultSyncDirection: SyncDirection;
+  /** "live" integrations work today; "coming_soon" are scaffolding only. */
+  status: "live" | "coming_soon";
 }
 
 export const INTEGRATION_DESCRIPTORS: IntegrationDescriptor[] = [
@@ -26,24 +28,29 @@ export const INTEGRATION_DESCRIPTORS: IntegrationDescriptor[] = [
     name: "Notion",
     description: "Import pages and databases as inbox items.",
     defaultSyncDirection: "import_only",
+    status: "coming_soon",
   },
   {
     id: "todoist",
     name: "Todoist",
     description: "Two-way sync for tasks you want everywhere.",
     defaultSyncDirection: "two_way",
+    status: "coming_soon",
   },
   {
     id: "google_calendar",
     name: "Google Calendar",
-    description: "See your day on Today and export approved time blocks.",
-    defaultSyncDirection: "import_only",
+    description:
+      "Your day on Today, real availability in the Daily Brief, and approved time blocks written back. Connected through your Google sign-in (avatar menu → Manage account → Connected accounts).",
+    defaultSyncDirection: "two_way",
+    status: "live",
   },
   {
     id: "gmail",
     name: "Gmail",
     description: "Turn starred emails into inbox items; export approved drafts.",
     defaultSyncDirection: "import_only",
+    status: "coming_soon",
   },
 ];
 

@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation } from "convex/react";
+import { useAction, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Doc } from "@/convex/_generated/dataModel";
 import { toast } from "sonner";
 import {
   AlertTriangle,
+  CalendarPlus,
   Check,
   ClipboardCopy,
   PenLine,
@@ -29,6 +30,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { TimeBlockDialog } from "@/components/calendar/time-block-dialog";
 
 const TYPE_LABELS: Record<DraftType, string> = {
   email: "Email draft",
@@ -65,8 +67,10 @@ export function ApprovalDraftCard({ draft }: { draft: Doc<"drafts"> }) {
   const approve = useMutation(api.drafts.approve);
   const reject = useMutation(api.drafts.reject);
   const updateContent = useMutation(api.drafts.updateContent);
+  const scheduleDraft = useAction(api.calendar.scheduleDraft);
 
   const [editOpen, setEditOpen] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
   const [title, setTitle] = useState(draft.title);
   const [body, setBody] = useState(draft.body);
   const [busy, setBusy] = useState(false);
@@ -128,9 +132,20 @@ export function ApprovalDraftCard({ draft }: { draft: Doc<"drafts"> }) {
         </p>
       </CardContent>
       <CardFooter className="flex flex-wrap gap-2 p-4 pt-0">
-        <Button size="sm" onClick={() => void onApprove()} disabled={busy}>
-          <Check aria-hidden="true" /> Approve
-        </Button>
+        {draft.type === "calendar" ? (
+          <>
+            <Button size="sm" onClick={() => setScheduleOpen(true)} disabled={busy}>
+              <CalendarPlus aria-hidden="true" /> Add to calendar…
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => void onApprove()} disabled={busy}>
+              <Check aria-hidden="true" /> Approve only
+            </Button>
+          </>
+        ) : (
+          <Button size="sm" onClick={() => void onApprove()} disabled={busy}>
+            <Check aria-hidden="true" /> Approve
+          </Button>
+        )}
         <Button size="sm" variant="outline" onClick={() => setEditOpen(true)} disabled={busy}>
           <PenLine aria-hidden="true" /> Edit first
         </Button>
@@ -147,6 +162,37 @@ export function ApprovalDraftCard({ draft }: { draft: Doc<"drafts"> }) {
           <X aria-hidden="true" /> Reject
         </Button>
       </CardFooter>
+
+      {draft.type === "calendar" && scheduleOpen && (
+        <TimeBlockDialog
+          open={scheduleOpen}
+          onOpenChange={setScheduleOpen}
+          heading="Approve & add to calendar"
+          description="You pick the time — approving writes this block to your Google Calendar."
+          defaultTitle={draft.title}
+          lockTitle
+          submitLabel="Approve & add"
+          onSubmit={async (input) => {
+            try {
+              const result = await scheduleDraft({
+                draftId: draft._id,
+                startIso: input.startIso,
+                endIso: input.endIso,
+              });
+              if (!result.ok) {
+                toast.error(result.error);
+                return false;
+              }
+              toast.success("Approved — it's on your Google Calendar.");
+              return true;
+            } catch (error) {
+              console.error(error);
+              toast.error("Couldn't add the event. The draft is untouched.");
+              return false;
+            }
+          }}
+        />
+      )}
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">

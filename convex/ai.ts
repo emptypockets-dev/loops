@@ -19,6 +19,7 @@ import {
 import type { AiResult } from "../lib/ai/types";
 import { DAILY_BRIEF_CLOSING_LINE, requiresApproval } from "../lib/constants";
 import { addDaysStr, mondayOf, utcToday } from "../lib/dates";
+import { fetchEventsForWindow } from "./lib/googleCalendar";
 
 /**
  * All OpenAI calls live in these Convex actions — server-side only, the key
@@ -91,15 +92,54 @@ export const classifyForUser = internalAction({
 
 // ── 2. Daily brief ───────────────────────────────────────────────────────────
 
+/**
+ * Best-effort calendar context for the brief. tzOffsetMinutes is the value of
+ * Date.prototype.getTimezoneOffset() in the user's browser (0 for cron), so
+ * the window matches the user's actual day. Not connected / errors → brief
+ * proceeds without calendar data.
+ */
+async function gatherCalendarForBrief(
+  user: Doc<"users">,
+  date: string,
+  tzOffsetMinutes: number
+): Promise<
+  | { connected: false }
+  | {
+      connected: true;
+      events: Array<{ title: string; start: string; end: string; allDay: boolean }>;
+    }
+> {
+  const dayStartMs = Date.parse(`${date}T00:00:00Z`) + tzOffsetMinutes * 60_000;
+  if (!Number.isFinite(dayStartMs)) return { connected: false };
+  const result = await fetchEventsForWindow(
+    user.clerkUserId,
+    new Date(dayStartMs).toISOString(),
+    new Date(dayStartMs + 24 * 60 * 60 * 1000).toISOString()
+  );
+  if (!result.ok) return { connected: false };
+  return {
+    connected: true,
+    events: result.data.slice(0, 20).map((event) => ({
+      title: event.title,
+      start: event.startIso,
+      end: event.endIso,
+      allDay: event.allDay,
+    })),
+  };
+}
+
 async function generateBriefForUser(
   ctx: ActionCtx,
-  userId: Id<"users">,
-  date: string
+  user: Doc<"users">,
+  date: string,
+  tzOffsetMinutes: number
 ): Promise<AiResult> {
+  const userId = user._id;
   const context = await ctx.runQuery(internal.dailyBriefs.gatherContext, { userId });
+  const calendarToday = await gatherCalendarForBrief(user, date, tzOffsetMinutes);
   const result = await callOpenAIJson({
     system: DAILY_BRIEF_SYSTEM_PROMPT,
-    payload: { date, ...context },
+    payload: { date, ...context, calendarToday },
     schema: dailyBriefSchema,
   });
   if (!result.ok) return result;
@@ -120,11 +160,12 @@ async function generateBriefForUser(
 
 /** On-demand generation; the client passes its local date (YYYY-MM-DD). */
 export const generateDailyBrief = action({
-  args: { date: v.string() },
+  args: { date: v.string(), tzOffsetMinutes: v.optional(v.number()) },
   handler: async (ctx, args): Promise<AiResult> => {
     const user = await ctx.runQuery(internal.users.getCurrent, {});
     if (!user) return { ok: false, error: "You're not signed in." };
-    return await generateBriefForUser(ctx, user._id, args.date);
+    const tzOffsetMinutes = Math.max(-840, Math.min(840, args.tzOffsetMinutes ?? 0));
+    return await generateBriefForUser(ctx, user, args.date, tzOffsetMinutes);
   },
 });
 
@@ -135,7 +176,7 @@ export const generateDailyBriefsForAllUsers = internalAction({
     const users = await ctx.runQuery(internal.users.listAll, {});
     const date = utcToday();
     for (const user of users) {
-      const result = await generateBriefForUser(ctx, user._id, date);
+      const result = await generateBriefForUser(ctx, user, date, 0);
       if (!result.ok) {
         console.error(`Daily brief failed for user ${user._id}: ${result.error}`);
       }

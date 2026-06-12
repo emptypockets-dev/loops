@@ -160,12 +160,23 @@ function IntegrationsSection() {
           <div key={integration.id} className="space-y-2 rounded-md border p-4">
             <div className="flex items-center justify-between gap-2">
               <p className="font-medium">{integration.name}</p>
-              <Badge variant="secondary">Coming soon</Badge>
+              {integration.status === "live" ? (
+                <Badge
+                  variant="outline"
+                  className="border-emerald-700/40 bg-emerald-50 text-emerald-900"
+                >
+                  live
+                </Badge>
+              ) : (
+                <Badge variant="secondary">Coming soon</Badge>
+              )}
             </div>
             <p className="text-sm text-muted-foreground">{integration.description}</p>
-            <Button variant="outline" size="sm" disabled aria-disabled="true" title="Coming soon">
-              Connect
-            </Button>
+            {integration.status !== "live" && (
+              <Button variant="outline" size="sm" disabled aria-disabled="true" title="Coming soon">
+                Connect
+              </Button>
+            )}
           </div>
         ))}
       </CardContent>

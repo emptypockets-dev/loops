@@ -16,7 +16,7 @@ The AI does **not** run your life. It catches, organizes, summarizes, drafts, re
 
 | Screen | What it does |
 | --- | --- |
-| **Today** | Daily Brief, Top 3 outcomes, 5-minute starts, open loops needing attention, drafts awaiting approval, calendar placeholder, Evening Shutdown CTA |
+| **Today** | Daily Brief (calendar-aware), Top 3 outcomes, 5-minute starts, open loops needing attention, drafts awaiting approval, today's Google Calendar + Block time, Evening Shutdown CTA |
 | **Inbox** | Universal capture, AI classify (with manual override), convert to task, archive/delete |
 | **Loops** | Recurring life protocols: create/edit/run, check off steps, every run ends with **“This counted.”** |
 | **Review** | Calm weekly review: completed, still open, can be dropped, needs a next action, patterns, loop improvements |
@@ -115,7 +115,32 @@ curl -X POST "https://<your-deployment>.convex.site/inbound-email?secret=<secret
 
 Your token is shown in Settings → Integrations even before `NEXT_PUBLIC_INBOUND_EMAIL_BASE` is configured.
 
-### 6. Deploy to Vercel
+### 6. Google Calendar — read + approved writes (Clerk-managed OAuth) — optional
+
+Today shows your real calendar, the Daily Brief factors in actual meeting load, and time blocks can be written back — always with you as the approver. No Google tokens are ever stored in Convex: each call fetches a fresh access token from Clerk's Backend API (Clerk refreshes it), uses it once, and drops it.
+
+**Write rules (approval-first):**
+- *Block time* on Today writes immediately — the click is the approval, and it's audit-logged.
+- AI `calendar` drafts never touch Google on their own. "Add to calendar…" on a draft asks you for the time, then writes; the draft becomes `sent`. "Approve only" keeps it internal.
+
+**Setup (~15 minutes, all in dashboards):**
+
+1. **Google Cloud Console** ([console.cloud.google.com](https://console.cloud.google.com)):
+   - Create a project → *APIs & Services → Library* → enable **Google Calendar API**.
+   - *OAuth consent screen*: External, fill in the basics, add yourself as a test user. (Testing mode supports up to 100 users with no verification; `calendar.events` is a "sensitive" scope, so Google review is only needed when you publish.)
+   - *Credentials → Create OAuth client ID → Web application*. You'll paste the redirect URI from Clerk in the next step.
+2. **Clerk dashboard** → *SSO connections → Google*:
+   - Enable **Use custom credentials** (required for extra scopes), copy Clerk's **redirect URI** into the Google OAuth client, then paste the Google **Client ID/Secret** into Clerk.
+   - Under **Scopes**, add: `https://www.googleapis.com/auth/calendar.events`
+3. **Convex** needs your Clerk secret key to fetch Google tokens server-side:
+   ```bash
+   npx convex env set CLERK_SECRET_KEY sk_test_…   # same value as in .env.local
+   ```
+4. **Connect your account**: sign in with Google, or avatar menu → *Manage account → Connected accounts → Connect Google*. If Google was connected before you added the scope, disconnect and reconnect so the new permission is granted.
+
+Privacy note: when the calendar is connected, event titles/times for today are included in the Daily Brief prompt sent to OpenAI (same as task titles).
+
+### 7. Deploy to Vercel
 
 1. Push the repo and import it into Vercel.
 2. **Vercel env vars** (Production + Preview):
@@ -129,7 +154,7 @@ Your token is shown in Settings → Integrations even before `NEXT_PUBLIC_INBOUN
    npx convex deploy --cmd 'npm run build'
    ```
    so the schema/functions deploy in lockstep with the frontend.
-4. Set `CLERK_JWT_ISSUER_DOMAIN`, `OPENAI_API_KEY` (and `INBOUND_EMAIL_WEBHOOK_SECRET` if using email-in) on the **production** Convex deployment too (`npx convex env set --prod …`), and point your email provider's webhook at the production `.convex.site` URL.
+4. Set `CLERK_JWT_ISSUER_DOMAIN`, `OPENAI_API_KEY`, `CLERK_SECRET_KEY` (for Google Calendar), and `INBOUND_EMAIL_WEBHOOK_SECRET` (for email-in) on the **production** Convex deployment too (`npx convex env set --prod …`), and point your email provider's webhook at the production `.convex.site` URL. Use your production Clerk secret key with production Google OAuth credentials.
 5. In Clerk, add your Vercel domain to the allowed origins (and switch to production keys when you go live).
 
 ---
@@ -143,8 +168,9 @@ Your token is shown in Settings → Integrations even before `NEXT_PUBLIC_INBOUN
 - **Constants** (`lib/constants/`): canonical categories, enums, tone preamble, default-loop seeds, approval rules. Convex schema validators, zod schemas, prompts, and screens all read from these.
 - **Crons** (`convex/crons.ts`): daily-brief generation (05:00 UTC) and the Sunday weekly-review generation (16:00 UTC).
 - **Audit log**: consequential mutations (convert, delete, approve/reject, loop runs, seeding, AI writes) append `auditLog` entries.
-- **Email-in capture** is the one live integration: a Convex HTTP action (`convex/http.ts`) receives provider webhooks, resolves the user by their rotatable capture token, stores the email as an inbox item, and schedules auto-classification (which respects the auto-archive opt-in). Forwarded items are marked “forwarded email” in the Inbox.
-- **OAuth integrations** remain scaffolding: `lib/integrations/provider.ts` defines the `IntegrationProvider` interface; Settings shows Notion / Todoist / Google Calendar / Gmail as “Coming soon”. The app is fully usable with zero integrations. OAuth token fields are placeholders — no encryption implemented.
+- **Email-in capture** is live: a Convex HTTP action (`convex/http.ts`) receives provider webhooks, resolves the user by their rotatable capture token, stores the email as an inbox item, and schedules auto-classification (which respects the auto-archive opt-in). Forwarded items are marked “forwarded email” in the Inbox.
+- **Google Calendar** is live via Clerk-managed OAuth (`convex/lib/googleCalendar.ts` + `convex/calendar.ts`): tokens are fetched per-request from Clerk's Backend API and never stored. Reads power Today and the Daily Brief; writes are approval-first (manual Block time, or "Add to calendar…" on an approved AI draft → status `sent`). All outward writes are audit-logged.
+- **Remaining integrations** (Notion / Todoist / Gmail) are scaffolding: `lib/integrations/provider.ts` defines the `IntegrationProvider` interface; Settings shows them as “Coming soon”. The app is fully usable with zero integrations. OAuth token fields in the `integrations` table are placeholders — no encryption implemented.
 
 ## Assumptions (chosen for shippability)
 
@@ -156,6 +182,7 @@ Your token is shown in Settings → Integrations even before `NEXT_PUBLIC_INBOUN
 - “Voice note” capture is a disabled placeholder button; real capture is text or forwarded email.
 - Email-in attachments are ignored (text only); bodies are truncated at 15k characters; rate limiting beyond the unguessable token + optional webhook secret is future hardening.
 - Forwarded emails auto-classify on arrival (the approval-first rules explicitly allow automatic classification; consequential actions still require approval).
+- Calendar reads/writes use the **primary** calendar only; events created by Loops are simple timed blocks (no attendees, no recurrence). Cron-generated briefs window the calendar to the UTC day; on-demand briefs use the browser's timezone offset.
 - The weekly cron *generates* the review (rather than only nudging) so it's waiting on the Review screen Sunday evening.
 
 ## Project layout

@@ -29,7 +29,7 @@ Respond with ONLY a JSON object with exactly these keys:
 - "canWait": up to 5 strings — things that genuinely can wait, named so they stop nagging
 - "avoidanceWarning": one gentle sentence naming something the user seems to be avoiding (look for old high-weight items), or null if nothing stands out
 
-Never invent tasks that are not in the data. If there is very little data, say so calmly and keep lists short.`;
+The input may include "calendarToday" with the user's real events for today. Treat events as fixed commitments: factor the remaining free time into how much is realistic, and mention a heavy meeting load briefly in the summary when it matters. Never invent events or tasks that are not in the data. If there is very little data, say so calmly and keep lists short.`;
 
 export const WEEKLY_REVIEW_SYSTEM_PROMPT = `You write a calm weekly review from the user's completed tasks, open tasks, archived/dropped items, and loop runs. No grades, no streaks, no shame — just an honest, kind accounting.
 

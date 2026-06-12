@@ -146,6 +146,9 @@ export default defineSchema({
     riskLevel: literals(RISK_LEVELS),
     relatedInboxItemId: v.optional(v.id("inboxItems")),
     relatedTaskId: v.optional(v.id("tasks")),
+    // Set when a calendar draft is approved and pushed to Google Calendar.
+    calendarEventId: v.optional(v.string()),
+    calendarEventLink: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })

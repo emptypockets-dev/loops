@@ -4,14 +4,14 @@ import { useMemo, useState } from "react";
 import { useAction, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
-import { CalendarDays, Inbox as InboxIcon, Sparkles, Target } from "lucide-react";
+import { Inbox as InboxIcon, Target } from "lucide-react";
 import { localToday } from "@/lib/dates";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/app/empty-state";
 import { ErrorBoundary } from "@/components/app/error-boundary";
 import { LoadingState } from "@/components/app/loading-state";
 import { ApprovalDraftCard } from "./approval-draft-card";
+import { CalendarSection } from "./calendar-section";
 import { DailyBriefCard } from "./daily-brief-card";
 import { FiveMinuteStartCard } from "./five-minute-start-card";
 import { OpenLoopsSection } from "./open-loops-section";
@@ -34,7 +34,11 @@ export function TodayView() {
     if (generating) return;
     setGenerating(true);
     try {
-      const result = await generateBrief({ date: today });
+      const result = await generateBrief({
+        date: today,
+        // getTimezoneOffset() lets the server window "today" to the user's actual day.
+        tzOffsetMinutes: new Date().getTimezoneOffset(),
+      });
       if (!result.ok) {
         toast.error(result.error);
       } else {
@@ -133,20 +137,12 @@ export function TodayView() {
         </section>
       </ErrorBoundary>
 
-      <section aria-label="Today's calendar" className="space-y-3">
-        <SectionHeading>Today's calendar</SectionHeading>
-        <Card>
-          <CardContent className="flex items-center gap-3 p-4 text-sm text-muted-foreground">
-            <CalendarDays className="h-4 w-4 shrink-0" aria-hidden="true" />
-            <span>
-              Your day at a glance lives here once Google Calendar connects.{" "}
-              <Badge variant="outline" className="ml-1 align-middle">
-                <Sparkles aria-hidden="true" /> coming soon
-              </Badge>
-            </span>
-          </CardContent>
-        </Card>
-      </section>
+      <ErrorBoundary label="your calendar">
+        <section aria-label="Today's calendar" className="space-y-3">
+          <SectionHeading>Today's calendar</SectionHeading>
+          <CalendarSection />
+        </section>
+      </ErrorBoundary>
 
       {loops !== undefined && <ShutdownCta loops={loops} />}
     </div>

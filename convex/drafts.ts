@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { internalMutation, mutation, query } from "./_generated/server";
+import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
 import { DRAFT_TYPES, RISK_LEVELS } from "../lib/constants";
@@ -91,6 +91,38 @@ export const reject = mutation({
     if (draft.status !== "draft") throw new Error("This draft has already been resolved.");
     await ctx.db.patch(args.id, { status: "rejected", updatedAt: Date.now() });
     await logAudit(ctx, user._id, "draft.rejected", "drafts", args.id, { type: draft.type });
+  },
+});
+
+/** Internal: ownership-checked fetch for the calendar actions. */
+export const getOwned = internalQuery({
+  args: { id: v.id("drafts") },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    const draft = await ctx.db.get(args.id);
+    if (!draft || draft.userId !== user._id) throw new Error("Draft not found.");
+    return draft;
+  },
+});
+
+/**
+ * Internal: a calendar draft was approved and the event now exists in Google
+ * Calendar. "sent" is the terminal status for drafts that left the building.
+ */
+export const markScheduled = internalMutation({
+  args: { id: v.id("drafts"), eventId: v.string(), link: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const draft = await ctx.db.get(args.id);
+    if (!draft) throw new Error("Draft not found.");
+    await ctx.db.patch(args.id, {
+      status: "sent",
+      calendarEventId: args.eventId,
+      calendarEventLink: args.link,
+      updatedAt: Date.now(),
+    });
+    await logAudit(ctx, draft.userId, "draft.scheduledToCalendar", "drafts", args.id, {
+      eventId: args.eventId,
+    });
   },
 });
 
