@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Inbox, NotebookPen, Orbit, RefreshCw, Settings, Sun } from "lucide-react";
+import { Inbox, NotebookPen, Orbit, Plus, RefreshCw, Settings, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { buttonVariants } from "@/components/ui/button";
 
 export const NAV_ITEMS = [
   { href: "/today", label: "Today", icon: Sun },
@@ -25,6 +26,14 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
       >
         <Orbit className="h-6 w-6 text-primary" aria-hidden="true" />
         <span className="text-lg font-semibold tracking-tight">Loops</span>
+      </Link>
+      <Link
+        href="/capture"
+        onClick={onNavigate}
+        className={cn(buttonVariants({ size: "default" }), "mb-3 w-full justify-start")}
+      >
+        <Plus aria-hidden="true" />
+        Capture
       </Link>
       {NAV_ITEMS.map((item) => {
         const active = pathname === item.href || pathname.startsWith(`${item.href}/`);

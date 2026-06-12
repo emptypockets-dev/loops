@@ -8,11 +8,15 @@ export const metadata: Metadata = {
   title: "Loops — your calm command center",
   description:
     "Turn life chaos into structured loops. Capture, classify, decide the next action — you stay in control.",
+  icons: {
+    apple: "/icons/apple-touch-icon.png",
+  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  themeColor: "#266e73",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

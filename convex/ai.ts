@@ -19,7 +19,9 @@ import {
 import type { AiResult } from "../lib/ai/types";
 import { DAILY_BRIEF_CLOSING_LINE, requiresApproval } from "../lib/constants";
 import { addDaysStr, mondayOf, utcToday } from "../lib/dates";
+import { buildDailyBriefEmail, buildWeeklyReviewEmail } from "../lib/email/templates";
 import { fetchEventsForWindow } from "./lib/googleCalendar";
+import { getAppBaseUrl, sendTransactionalEmail } from "./lib/postmark";
 
 /**
  * All OpenAI calls live in these Convex actions — server-side only, the key
@@ -128,12 +130,21 @@ async function gatherCalendarForBrief(
   };
 }
 
+interface BriefData {
+  summary: string;
+  topOutcomes: string[];
+  fiveMinuteStarts: string[];
+  canWait: string[];
+  avoidanceWarning?: string;
+  closingLine: string;
+}
+
 async function generateBriefForUser(
   ctx: ActionCtx,
   user: Doc<"users">,
   date: string,
   tzOffsetMinutes: number
-): Promise<AiResult> {
+): Promise<{ ok: true; brief: BriefData } | { ok: false; error: string }> {
   const userId = user._id;
   const context = await ctx.runQuery(internal.dailyBriefs.gatherContext, { userId });
   const calendarToday = await gatherCalendarForBrief(user, date, tzOffsetMinutes);
@@ -144,9 +155,7 @@ async function generateBriefForUser(
   });
   if (!result.ok) return result;
 
-  await ctx.runMutation(internal.dailyBriefs.upsertForDate, {
-    userId,
-    date,
+  const brief: BriefData = {
     summary: result.data.summary,
     topOutcomes: result.data.topOutcomes,
     fiveMinuteStarts: result.data.fiveMinuteStarts,
@@ -154,8 +163,9 @@ async function generateBriefForUser(
     avoidanceWarning: result.data.avoidanceWarning,
     // The closing reassurance is a product guarantee, not a model choice.
     closingLine: DAILY_BRIEF_CLOSING_LINE,
-  });
-  return { ok: true };
+  };
+  await ctx.runMutation(internal.dailyBriefs.upsertForDate, { userId, date, ...brief });
+  return { ok: true, brief };
 }
 
 /** On-demand generation; the client passes its local date (YYYY-MM-DD). */
@@ -165,20 +175,34 @@ export const generateDailyBrief = action({
     const user = await ctx.runQuery(internal.users.getCurrent, {});
     if (!user) return { ok: false, error: "You're not signed in." };
     const tzOffsetMinutes = Math.max(-840, Math.min(840, args.tzOffsetMinutes ?? 0));
-    return await generateBriefForUser(ctx, user, args.date, tzOffsetMinutes);
+    const result = await generateBriefForUser(ctx, user, args.date, tzOffsetMinutes);
+    return result.ok ? { ok: true } : result;
   },
 });
 
-/** Daily cron fan-out (UTC day — see README assumption). */
+/**
+ * Daily cron fan-out (UTC day — see README assumption). When outbound email
+ * is configured, the brief is also delivered to the user's own address so it
+ * lands in their attention stream instead of waiting in the app.
+ */
 export const generateDailyBriefsForAllUsers = internalAction({
   args: {},
   handler: async (ctx): Promise<void> => {
     const users = await ctx.runQuery(internal.users.listAll, {});
     const date = utcToday();
+    const appUrl = getAppBaseUrl();
     for (const user of users) {
       const result = await generateBriefForUser(ctx, user, date, 0);
       if (!result.ok) {
         console.error(`Daily brief failed for user ${user._id}: ${result.error}`);
+        continue;
+      }
+      if (user.briefEmailEnabled !== false && user.email) {
+        const email = buildDailyBriefEmail({ date, ...result.brief, appUrl });
+        const sent = await sendTransactionalEmail({ to: user.email, ...email });
+        if (!sent.ok && !sent.skipped) {
+          console.error(`Brief email failed for user ${user._id}: ${sent.error}`);
+        }
       }
     }
   },
@@ -186,11 +210,20 @@ export const generateDailyBriefsForAllUsers = internalAction({
 
 // ── 3. Weekly review ─────────────────────────────────────────────────────────
 
+interface ReviewData {
+  completed: string[];
+  stillOpen: string[];
+  dropped: string[];
+  needsNextAction: string[];
+  patterns: string[];
+  suggestedLoopChanges: string[];
+}
+
 async function generateReviewForUser(
   ctx: ActionCtx,
   userId: Id<"users">,
   weekStart: string
-): Promise<AiResult> {
+): Promise<{ ok: true; review: ReviewData } | { ok: false; error: string }> {
   const context = await ctx.runQuery(internal.reviews.gatherContext, { userId });
   const result = await callOpenAIJson({
     system: WEEKLY_REVIEW_SYSTEM_PROMPT,
@@ -199,18 +232,21 @@ async function generateReviewForUser(
   });
   if (!result.ok) return result;
 
-  await ctx.runMutation(internal.reviews.upsertForWeek, {
-    userId,
-    weekStart,
-    weekEnd: addDaysStr(weekStart, 6),
+  const review: ReviewData = {
     completed: result.data.completed,
     stillOpen: result.data.stillOpen,
     dropped: result.data.dropped,
     needsNextAction: result.data.needsNextAction,
     patterns: result.data.patterns,
     suggestedLoopChanges: result.data.suggestedLoopChanges,
+  };
+  await ctx.runMutation(internal.reviews.upsertForWeek, {
+    userId,
+    weekStart,
+    weekEnd: addDaysStr(weekStart, 6),
+    ...review,
   });
-  return { ok: true };
+  return { ok: true, review };
 }
 
 /** On-demand generation for the week containing the given local date. */
@@ -219,20 +255,40 @@ export const generateWeeklyReview = action({
   handler: async (ctx, args): Promise<AiResult> => {
     const user = await ctx.runQuery(internal.users.getCurrent, {});
     if (!user) return { ok: false, error: "You're not signed in." };
-    return await generateReviewForUser(ctx, user._id, mondayOf(args.date));
+    const result = await generateReviewForUser(ctx, user._id, mondayOf(args.date));
+    return result.ok ? { ok: true } : result;
   },
 });
 
-/** Weekly cron: the Sunday "review reminder" generates the week's review. */
+/**
+ * Weekly cron: the Sunday "review reminder" generates the week's review and,
+ * when outbound email is configured, delivers it to the user.
+ */
 export const generateWeeklyReviewsForAllUsers = internalAction({
   args: {},
   handler: async (ctx): Promise<void> => {
     const users = await ctx.runQuery(internal.users.listAll, {});
     const weekStart = mondayOf(utcToday());
+    const appUrl = getAppBaseUrl();
     for (const user of users) {
       const result = await generateReviewForUser(ctx, user._id, weekStart);
       if (!result.ok) {
         console.error(`Weekly review failed for user ${user._id}: ${result.error}`);
+        continue;
+      }
+      if (user.reviewEmailEnabled !== false && user.email) {
+        const email = buildWeeklyReviewEmail({
+          weekStart,
+          weekEnd: addDaysStr(weekStart, 6),
+          completed: result.review.completed,
+          patterns: result.review.patterns,
+          needsNextAction: result.review.needsNextAction,
+          appUrl,
+        });
+        const sent = await sendTransactionalEmail({ to: user.email, ...email });
+        if (!sent.ok && !sent.skipped) {
+          console.error(`Review email failed for user ${user._id}: ${sent.error}`);
+        }
       }
     }
   },

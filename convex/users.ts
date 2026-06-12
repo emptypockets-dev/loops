@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { internalQuery, mutation, query } from "./_generated/server";
 import { DEFAULT_LOOPS } from "../lib/constants";
 import { getCurrentUser, requireUser } from "./lib/auth";
-import { logAudit } from "./lib/audit";
+import { logAudit, pruneUndefined } from "./lib/audit";
 
 /** Unguessable secret for the email-in capture address (~122 bits of entropy). */
 function generateCaptureToken(): string {
@@ -101,16 +101,17 @@ export const regenerateCaptureToken = mutation({
 });
 
 export const updatePreferences = mutation({
-  args: { autoArchiveEnabled: v.boolean() },
+  args: {
+    autoArchiveEnabled: v.optional(v.boolean()),
+    briefEmailEnabled: v.optional(v.boolean()),
+    reviewEmailEnabled: v.optional(v.boolean()),
+  },
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
-    await ctx.db.patch(user._id, {
-      autoArchiveEnabled: args.autoArchiveEnabled,
-      updatedAt: Date.now(),
-    });
-    await logAudit(ctx, user._id, "user.preferencesUpdated", "users", user._id, {
-      autoArchiveEnabled: args.autoArchiveEnabled,
-    });
+    const patch = pruneUndefined(args);
+    if (Object.keys(patch).length === 0) return;
+    await ctx.db.patch(user._id, { ...patch, updatedAt: Date.now() });
+    await logAudit(ctx, user._id, "user.preferencesUpdated", "users", user._id, patch);
   },
 });
 

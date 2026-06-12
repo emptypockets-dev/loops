@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
-import { Menu, Orbit } from "lucide-react";
+import { Menu, Orbit, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { SidebarNav } from "./sidebar-nav";
@@ -29,7 +30,12 @@ export function TopBar() {
         <span className="font-semibold">Loops</span>
       </div>
 
-      <div className="ml-auto flex items-center gap-3">
+      <div className="ml-auto flex items-center gap-2">
+        <Button variant="ghost" size="icon" className="md:hidden" asChild>
+          <Link href="/capture" aria-label="Capture something">
+            <Plus className="h-5 w-5" />
+          </Link>
+        </Button>
         <UserButton afterSignOutUrl="/" />
       </div>
     </header>

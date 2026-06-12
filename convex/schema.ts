@@ -25,6 +25,9 @@ export default defineSchema({
     name: v.string(),
     // AI preference: allow auto-archiving of low-risk "Trash" classifications.
     autoArchiveEnabled: v.optional(v.boolean()),
+    // Notification emails (to the user themselves). Undefined = enabled.
+    briefEmailEnabled: v.optional(v.boolean()),
+    reviewEmailEnabled: v.optional(v.boolean()),
     // Idempotency marker for default-loop seeding — set once, never re-seeded.
     defaultLoopsSeededAt: v.optional(v.number()),
     // Secret for the email-in capture address (capture+<token>@…). Rotatable.

@@ -35,6 +35,20 @@ export const list = query({
   },
 });
 
+/** Whether the user has captured anything yet (drives the first-run brain dump). */
+export const hasAny = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) return false;
+    const first = await ctx.db
+      .query("inboxItems")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .first();
+    return first !== null;
+  },
+});
+
 export const capture = mutation({
   args: { rawText: v.string() },
   handler: async (ctx, args) => {

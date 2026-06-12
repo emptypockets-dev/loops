@@ -23,6 +23,8 @@ import type * as inboxItems from "../inboxItems.js";
 import type * as integrations from "../integrations.js";
 import type * as lib_audit from "../lib/audit.js";
 import type * as lib_auth from "../lib/auth.js";
+import type * as lib_googleCalendar from "../lib/googleCalendar.js";
+import type * as lib_postmark from "../lib/postmark.js";
 import type * as lib_validators from "../lib/validators.js";
 import type * as loops from "../loops.js";
 import type * as reviews from "../reviews.js";
@@ -48,6 +50,8 @@ declare const fullApi: ApiFromModules<{
   integrations: typeof integrations;
   "lib/audit": typeof lib_audit;
   "lib/auth": typeof lib_auth;
+  "lib/googleCalendar": typeof lib_googleCalendar;
+  "lib/postmark": typeof lib_postmark;
   "lib/validators": typeof lib_validators;
   loops: typeof loops;
   reviews: typeof reviews;

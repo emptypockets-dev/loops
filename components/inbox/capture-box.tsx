@@ -10,8 +10,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 
 /** Universal capture: type it, dump it, sort later. Voice is a future feature. */
-export function CaptureBox() {
-  const [text, setText] = useState("");
+export function CaptureBox({
+  autoFocus = false,
+  initialText = "",
+  onCaptured,
+}: {
+  autoFocus?: boolean;
+  /** Prefill (e.g. from the PWA share target). */
+  initialText?: string;
+  onCaptured?: () => void;
+} = {}) {
+  const [text, setText] = useState(initialText);
   const [saving, setSaving] = useState(false);
   const capture = useMutation(api.inboxItems.capture);
 
@@ -23,6 +32,7 @@ export function CaptureBox() {
       await capture({ rawText });
       setText("");
       toast.success("Captured. It's out of your head now.");
+      onCaptured?.();
     } catch (error) {
       console.error(error);
       toast.error("Couldn't capture that. Try again.");
@@ -39,6 +49,7 @@ export function CaptureBox() {
       <Textarea
         id="capture-input"
         value={text}
+        autoFocus={autoFocus}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
           if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {

@@ -56,6 +56,66 @@ function ProfileSection() {
   );
 }
 
+function NotificationsSection() {
+  const convexUser = useQuery(api.users.current);
+  const updatePreferences = useMutation(api.users.updatePreferences);
+
+  if (convexUser === undefined) return <LoadingState label="Loading notifications…" rows={1} />;
+
+  const toggle = (key: "briefEmailEnabled" | "reviewEmailEnabled", value: boolean) => {
+    void updatePreferences({ [key]: value })
+      .then(() => toast.success("Preference saved."))
+      .catch(() => toast.error("Couldn't save that preference."));
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Email delivery</CardTitle>
+        <CardDescription>
+          The app comes to you: scheduled briefs and reviews are emailed to{" "}
+          {convexUser?.email || "your account address"} so they land in your morning, not in a tab
+          you forgot. Requires outbound email configuration (README).
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-start gap-3">
+          <Checkbox
+            id="brief-email"
+            className="mt-0.5"
+            checked={convexUser?.briefEmailEnabled !== false}
+            onCheckedChange={(value) => toggle("briefEmailEnabled", value === true)}
+          />
+          <div className="space-y-1">
+            <Label htmlFor="brief-email" className="cursor-pointer">
+              Email me the Daily Brief each morning
+            </Label>
+            <p className="text-sm text-muted-foreground">
+              Summary, top 3 outcomes, and one 5-minute start — readable in 60 seconds.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-start gap-3">
+          <Checkbox
+            id="review-email"
+            className="mt-0.5"
+            checked={convexUser?.reviewEmailEnabled !== false}
+            onCheckedChange={(value) => toggle("reviewEmailEnabled", value === true)}
+          />
+          <div className="space-y-1">
+            <Label htmlFor="review-email" className="cursor-pointer">
+              Email me the Weekly Review on Sundays
+            </Label>
+            <p className="text-sm text-muted-foreground">
+              What happened, what can be dropped, and patterns worth noticing. No grades.
+            </p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function AiPreferencesSection() {
   const convexUser = useQuery(api.users.current);
   const updatePreferences = useMutation(api.users.updatePreferences);
@@ -251,8 +311,9 @@ export function SettingsView() {
           <TabsTrigger value="integrations">Integrations</TabsTrigger>
           <TabsTrigger value="data">Data</TabsTrigger>
         </TabsList>
-        <TabsContent value="profile">
+        <TabsContent value="profile" className="space-y-4">
           <ProfileSection />
+          <NotificationsSection />
         </TabsContent>
         <TabsContent value="ai">
           <AiPreferencesSection />
