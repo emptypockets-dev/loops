@@ -1,6 +1,7 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import {
+  ARCHIVE_REASONS,
   CADENCES,
   CATEGORIES,
   CLASSIFIED_BY,
@@ -88,6 +89,8 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
     archivedAt: v.optional(v.number()),
+    // Why it left the active list — "done" is a completion the review credits.
+    archivedReason: v.optional(literals(ARCHIVE_REASONS)),
   })
     .index("by_user", ["userId"])
     .index("by_user_status", ["userId", "status"])

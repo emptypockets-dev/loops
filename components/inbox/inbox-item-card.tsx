@@ -9,6 +9,7 @@ import {
   Archive,
   ArchiveRestore,
   ArrowRight,
+  CheckCircle2,
   CheckSquare,
   Clock,
   Loader2,
@@ -111,6 +112,13 @@ export function InboxItemCard({ item }: { item: Doc<"inboxItems"> }) {
     }
   };
 
+  // The fastest exit: handled it in the moment, credit taken, off the pile.
+  const markHandled = () => {
+    void archive({ id: item._id, reason: "done" })
+      .then(() => toast.success("Handled. That counted."))
+      .catch(() => toast.error("Couldn't mark it done."));
+  };
+
   return (
     <Card className={isArchived ? "opacity-70" : undefined}>
       <CardHeader className="space-y-2 p-4 pb-2">
@@ -133,11 +141,16 @@ export function InboxItemCard({ item }: { item: Doc<"inboxItems"> }) {
               <CheckSquare aria-hidden="true" /> task created
             </Badge>
           )}
-          {isArchived && (
-            <Badge variant="outline">
-              <Archive aria-hidden="true" /> archived
-            </Badge>
-          )}
+          {isArchived &&
+            (item.archivedReason === "done" ? (
+              <Badge variant="outline">
+                <CheckCircle2 aria-hidden="true" /> handled
+              </Badge>
+            ) : (
+              <Badge variant="outline">
+                <Archive aria-hidden="true" /> archived
+              </Badge>
+            ))}
           {isSnoozed && (
             <Badge variant="outline">
               <Clock aria-hidden="true" /> snoozed until {formatDateShort(item.snoozedUntil!)}
@@ -172,6 +185,10 @@ export function InboxItemCard({ item }: { item: Doc<"inboxItems"> }) {
       <CardFooter className="flex flex-wrap gap-2 p-4 pt-0">
         {!isArchived && (
           <>
+            <Button size="sm" variant="outline" onClick={markHandled}>
+              <CheckCircle2 aria-hidden="true" />
+              Done
+            </Button>
             <Button size="sm" variant="secondary" onClick={() => void runClassify()} disabled={classifying}>
               {classifying ? (
                 <Loader2 className="animate-spin" aria-hidden="true" />

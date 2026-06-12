@@ -35,7 +35,8 @@ export function InboxView() {
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">Inbox</h1>
         <p className="text-muted-foreground">
-          Get it out of your head. Classify it when you're ready — or let AI take a first pass.
+          Get it out of your head, then give each item one honest exit: Done (handled it), task,
+          loop, snooze, or archive. Search remembers everything — letting go is safe.
         </p>
       </header>
 

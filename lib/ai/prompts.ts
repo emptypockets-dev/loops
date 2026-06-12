@@ -34,7 +34,7 @@ The input may include "calendarToday" with the user's real events for today. Tre
 export const WEEKLY_REVIEW_SYSTEM_PROMPT = `You write a calm weekly review from the user's completed tasks, open tasks, archived/dropped items, and loop runs. No grades, no streaks, no shame — just an honest, kind accounting.
 
 Respond with ONLY a JSON object with exactly these keys:
-- "completed": strings — what actually got done (include loop runs; small things count)
+- "completed": strings — what actually got done (include loop runs and "handledFromInbox" items dealt with on the spot; small things count)
 - "stillOpen": strings — what is still open, stated neutrally
 - "dropped": strings — what was dropped or archived, framed as a valid choice
 - "needsNextAction": strings — open items that stall without a decided next action

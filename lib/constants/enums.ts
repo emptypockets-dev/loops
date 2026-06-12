@@ -24,6 +24,11 @@ export type InboxStatus = (typeof INBOX_STATUSES)[number];
 export const CLASSIFIED_BY = ["ai", "user"] as const;
 export type ClassifiedBy = (typeof CLASSIFIED_BY)[number];
 
+/** Why an inbox item left the active list: handled on the spot, filed away,
+ * or auto-archived by the opt-in Trash rule. "done" counts as a completion. */
+export const ARCHIVE_REASONS = ["done", "filed", "auto"] as const;
+export type ArchiveReason = (typeof ARCHIVE_REASONS)[number];
+
 export const TASK_STATUSES = ["todo", "doing", "waiting", "done", "dropped"] as const;
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 

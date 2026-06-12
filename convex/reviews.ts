@@ -77,12 +77,26 @@ export const gatherContext = internalQuery({
           hasFiveMinuteStart: Boolean(t.fiveMinuteStart),
           ageDays: Math.floor((Date.now() - t.createdAt) / (24 * 60 * 60 * 1000)),
         })),
+      // Handled straight from the inbox — completions, not drops.
+      handledFromInbox: inboxItems
+        .filter(
+          (i) =>
+            i.status === "archived" &&
+            i.archivedReason === "done" &&
+            (i.archivedAt ?? 0) >= weekAgo
+        )
+        .map((i) => ({ title: i.cleanedTitle || i.rawText.slice(0, 120) })),
       droppedOrArchived: [
         ...tasks
           .filter((t) => t.status === "dropped" && t.updatedAt >= weekAgo)
           .map((t) => ({ kind: "task", title: t.title })),
         ...inboxItems
-          .filter((i) => i.status === "archived" && (i.archivedAt ?? 0) >= weekAgo)
+          .filter(
+            (i) =>
+              i.status === "archived" &&
+              i.archivedReason !== "done" &&
+              (i.archivedAt ?? 0) >= weekAgo
+          )
           .map((i) => ({ kind: "inboxItem", title: i.cleanedTitle || i.rawText.slice(0, 120) })),
       ],
       unprocessedInboxCount: inboxItems.filter((i) => i.status === "unprocessed").length,

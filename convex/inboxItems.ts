@@ -3,7 +3,7 @@ import { internalMutation, internalQuery, mutation, query } from "./_generated/s
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
-import { CATEGORIES, EMOTIONAL_WEIGHTS, URGENCY_LEVELS } from "../lib/constants";
+import { ARCHIVE_REASONS, CATEGORIES, EMOTIONAL_WEIGHTS, URGENCY_LEVELS } from "../lib/constants";
 import { cleanSubjectForTitle } from "../lib/email/parse-inbound";
 import { getCurrentUser, requireUser } from "./lib/auth";
 import { logAudit, pruneUndefined } from "./lib/audit";
@@ -141,12 +141,28 @@ export const update = mutation({
 });
 
 export const archive = mutation({
-  args: { id: v.id("inboxItems") },
+  args: {
+    id: v.id("inboxItems"),
+    // "done" = handled on the spot (a completion); default is plain filing.
+    reason: v.optional(literals(ARCHIVE_REASONS)),
+  },
   handler: async (ctx, args) => {
     const { user } = await getOwnedItem(ctx, args.id);
+    const reason = args.reason ?? "filed";
     const now = Date.now();
-    await ctx.db.patch(args.id, { status: "archived", archivedAt: now, updatedAt: now });
-    await logAudit(ctx, user._id, "inboxItem.archived", "inboxItems", args.id);
+    await ctx.db.patch(args.id, {
+      status: "archived",
+      archivedAt: now,
+      archivedReason: reason,
+      updatedAt: now,
+    });
+    await logAudit(
+      ctx,
+      user._id,
+      reason === "done" ? "inboxItem.handled" : "inboxItem.archived",
+      "inboxItems",
+      args.id
+    );
   },
 });
 
@@ -157,6 +173,7 @@ export const unarchive = mutation({
     await ctx.db.patch(args.id, {
       status: item.classifiedBy ? "classified" : "unprocessed",
       archivedAt: undefined,
+      archivedReason: undefined,
       updatedAt: Date.now(),
     });
     await logAudit(ctx, user._id, "inboxItem.unarchived", "inboxItems", args.id);
@@ -381,7 +398,7 @@ export const applyClassification = internalMutation({
       ...args.classification,
       classifiedBy: "ai" as const,
       status: args.autoArchive ? ("archived" as const) : ("classified" as const),
-      ...(args.autoArchive ? { archivedAt: now } : {}),
+      ...(args.autoArchive ? { archivedAt: now, archivedReason: "auto" as const } : {}),
       updatedAt: now,
     });
     await logAudit(
