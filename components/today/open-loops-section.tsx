@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation } from "convex/react";
+import { useAction, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Doc } from "@/convex/_generated/dataModel";
 import { toast } from "sonner";
@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   Hourglass,
   MoreHorizontal,
+  PenLine,
   Play,
   RotateCcw,
   Timer,
@@ -36,12 +37,33 @@ import { LoopRunDialog } from "@/components/loops/loop-run-dialog";
 function TaskRow({ task, waiting = false }: { task: Doc<"tasks">; waiting?: boolean }) {
   const setStatus = useMutation(api.tasks.setStatus);
   const removeTask = useMutation(api.tasks.remove);
+  const draftAction = useAction(api.ai.draftResponseOrAction);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [drafting, setDrafting] = useState(false);
 
   const move = (status: TaskStatus, message: string) => {
     void setStatus({ id: task._id, status })
       .then(() => toast.success(message))
       .catch(() => toast.error("Couldn't update the task."));
+  };
+
+  // A stalled wait becomes a ready-to-approve nudge email in one tap.
+  const draftNudge = async () => {
+    if (drafting) return;
+    setDrafting(true);
+    try {
+      const result = await draftAction({ taskId: task._id });
+      if (!result.ok) {
+        toast.error(result.error);
+      } else {
+        toast.success("Nudge drafted — it's in your approval queue above.");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Couldn't draft the nudge. Nothing was saved.");
+    } finally {
+      setDrafting(false);
+    }
   };
 
   return (
@@ -89,9 +111,14 @@ function TaskRow({ task, waiting = false }: { task: Doc<"tasks">; waiting?: bool
               </DropdownMenuItem>
             )}
             {waiting ? (
-              <DropdownMenuItem onSelect={() => move("todo", "Back on your list.")}>
-                <RotateCcw /> Ball's back in my court
-              </DropdownMenuItem>
+              <>
+                <DropdownMenuItem disabled={drafting} onSelect={() => void draftNudge()}>
+                  <PenLine /> Draft a gentle nudge
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => move("todo", "Back on your list.")}>
+                  <RotateCcw /> Ball's back in my court
+                </DropdownMenuItem>
+              </>
             ) : (
               <DropdownMenuItem onSelect={() => move("waiting", "Parked as waiting on someone else.")}>
                 <Hourglass /> Waiting on someone
