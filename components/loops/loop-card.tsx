@@ -58,7 +58,6 @@ export function LoopCard({ loop }: { loop: Doc<"loops"> }) {
       <CardHeader className="space-y-2 p-4 pb-2">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="secondary">{CADENCE_LABELS[loop.cadence]}</Badge>
-          <Badge variant="outline">{loop.category}</Badge>
           {due && (
             <Badge className="bg-accent text-accent-foreground">
               <CircleDot aria-hidden="true" /> due now
@@ -78,6 +77,8 @@ export function LoopCard({ loop }: { loop: Doc<"loops"> }) {
           <p className="line-clamp-2 text-sm text-muted-foreground">{loop.description}</p>
         )}
         <p className="text-xs text-muted-foreground">
+          {loop.category}
+          {" · "}
           {loop.steps.length} step{loop.steps.length === 1 ? "" : "s"}
           {loop.timeOfDay && loop.timeOfDay !== "anytime" ? ` · ${loop.timeOfDay}s` : ""}
           {" · "}

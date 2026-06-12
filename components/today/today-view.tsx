@@ -4,10 +4,7 @@ import { useMemo, useState } from "react";
 import { useAction, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
-import { Inbox as InboxIcon, Target } from "lucide-react";
 import { localToday } from "@/lib/dates";
-import { Card, CardContent } from "@/components/ui/card";
-import { EmptyState } from "@/components/app/empty-state";
 import { ErrorBoundary } from "@/components/app/error-boundary";
 import { LoadingState } from "@/components/app/loading-state";
 import { ApprovalDraftCard } from "./approval-draft-card";
@@ -15,9 +12,8 @@ import { CalendarSection } from "./calendar-section";
 import { FirstActionCard } from "./first-action-card";
 import { OnboardingCard } from "./onboarding-card";
 import { ResolvedDraftsSheet } from "./resolved-drafts-sheet";
-import { UnstuckCard } from "./unstuck-card";
+import { UnstuckButton } from "./unstuck-button";
 import { DailyBriefCard } from "./daily-brief-card";
-import { FiveMinuteStartCard } from "./five-minute-start-card";
 import { OpenLoopsSection } from "./open-loops-section";
 import { ShutdownCta } from "./shutdown-cta";
 
@@ -72,9 +68,14 @@ export function TodayView() {
 
   return (
     <div className="space-y-8">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Today</h1>
-        <p className="text-muted-foreground">{dateLabel} — what matters now, nothing more.</p>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight">Today</h1>
+          <p className="text-muted-foreground">{dateLabel} — what matters now, nothing more.</p>
+        </div>
+        <ErrorBoundary label="the unstuck button">
+          <UnstuckButton />
+        </ErrorBoundary>
       </header>
 
       <ErrorBoundary label="your first action">
@@ -83,10 +84,6 @@ export function TodayView() {
 
       <ErrorBoundary label="getting started">
         <OnboardingCard />
-      </ErrorBoundary>
-
-      <ErrorBoundary label="the unstuck button">
-        <UnstuckCard />
       </ErrorBoundary>
 
       <ErrorBoundary label="the daily brief">
@@ -98,36 +95,6 @@ export function TodayView() {
           )}
         </section>
       </ErrorBoundary>
-
-      {brief && brief.topOutcomes.length > 0 && (
-        <section aria-label="Top 3 outcomes" className="space-y-3">
-          <SectionHeading>Top 3 outcomes</SectionHeading>
-          <div className="space-y-2">
-            {brief.topOutcomes.map((outcome, i) => (
-              <Card key={i}>
-                <CardContent className="flex items-center gap-3 p-4">
-                  <Target className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-                  <p className="font-medium leading-snug">{outcome}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {brief && brief.fiveMinuteStarts.length > 0 && (
-        <section aria-label="Five minute starts" className="space-y-3">
-          <SectionHeading>5-minute starts</SectionHeading>
-          <p className="text-sm text-muted-foreground">
-            Can't face the big thing? Start with five minutes of it.
-          </p>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {brief.fiveMinuteStarts.map((start, i) => (
-              <FiveMinuteStartCard key={i} text={start} />
-            ))}
-          </div>
-        </section>
-      )}
 
       <ErrorBoundary label="open loops">
         <section aria-label="Open loops needing attention" className="space-y-3">
@@ -149,11 +116,9 @@ export function TodayView() {
           {pendingDrafts === undefined ? (
             <LoadingState label="Loading drafts…" rows={1} />
           ) : pendingDrafts.length === 0 ? (
-            <EmptyState
-              icon={InboxIcon}
-              title="Nothing waiting on you"
-              description="When AI drafts an email, task, or calendar block, it lands here for your yes or no."
-            />
+            <p className="text-sm text-muted-foreground">
+              Nothing waiting on your approval. AI drafts land here for your yes or no.
+            </p>
           ) : (
             <div className="space-y-3">
               {pendingDrafts.map((draft) => (

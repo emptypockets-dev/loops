@@ -130,11 +130,12 @@ export function InboxItemCard({ item }: { item: Doc<"inboxItems"> }) {
           )}
           {hasClassification && <ClassificationBadge by={item.classifiedBy!} />}
           {hasClassification && <Badge variant="secondary">{item.category}</Badge>}
-          {hasClassification && (
+          {/* Badges only when they carry signal — "low" everything is the quiet default. */}
+          {hasClassification && item.urgency !== "low" && (
             <Badge variant="outline">urgency: {item.urgency}</Badge>
           )}
-          {hasClassification && (
-            <Badge variant="outline">weight: {item.emotionalWeight}</Badge>
+          {hasClassification && item.emotionalWeight === "high" && (
+            <Badge variant="outline">feels heavy</Badge>
           )}
           {isConverted && (
             <Badge variant="outline">
@@ -203,14 +204,6 @@ export function InboxItemCard({ item }: { item: Doc<"inboxItems"> }) {
                 Make it a task
               </Button>
             )}
-            <Button size="sm" variant="outline" onClick={() => void runDraft()} disabled={drafting}>
-              {drafting ? (
-                <Loader2 className="animate-spin" aria-hidden="true" />
-              ) : (
-                <PenLine aria-hidden="true" />
-              )}
-              Draft action
-            </Button>
           </>
         )}
         <DropdownMenu>
@@ -223,6 +216,11 @@ export function InboxItemCard({ item }: { item: Doc<"inboxItems"> }) {
             <DropdownMenuItem onSelect={() => setEditOpen(true)}>
               <PenLine /> Edit / override
             </DropdownMenuItem>
+            {!isArchived && (
+              <DropdownMenuItem disabled={drafting} onSelect={() => void runDraft()}>
+                <Mail /> Draft a reply / action
+              </DropdownMenuItem>
+            )}
             {!isArchived && !isConverted && (
               <DropdownMenuItem onSelect={() => setLoopFormOpen(true)}>
                 <RefreshCw /> Make it a loop

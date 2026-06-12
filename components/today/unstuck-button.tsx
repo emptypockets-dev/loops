@@ -8,7 +8,6 @@ import { toast } from "sonner";
 import { ArrowRight, CheckCircle2, LifeBuoy, Loader2, Timer } from "lucide-react";
 import { LOOP_COUNTED_PHRASE } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -31,9 +30,10 @@ const MAX_REROLLS = 3;
 /**
  * The Unstuck Button: for the frozen moment. One press → exactly one thing,
  * chosen from real data, with the first five minutes spelled out. Never a
- * list — lists are the problem.
+ * list — lists are the problem. Lives as a quiet header button; the dialog
+ * is the moment of focus.
  */
-export function UnstuckCard() {
+export function UnstuckButton() {
   const getUnstuck = useAction(api.ai.getUnstuck);
   const markActed = useMutation(api.nudges.markActed);
 
@@ -93,20 +93,10 @@ export function UnstuckCard() {
 
   return (
     <>
-      <Card className="border-primary/30">
-        <CardContent className="flex flex-wrap items-center gap-3 p-4">
-          <LifeBuoy className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
-          <p className="min-w-0 flex-1 text-sm">
-            <span className="font-medium">Stuck? Spinning?</span>{" "}
-            <span className="text-muted-foreground">
-              One press, one small thing — picked from your actual stuff.
-            </span>
-          </p>
-          <Button onClick={start} disabled={loading}>
-            Give me one thing
-          </Button>
-        </CardContent>
-      </Card>
+      <Button variant="outline" onClick={start} disabled={loading} title="One small thing, picked from your actual stuff">
+        <LifeBuoy aria-hidden="true" />
+        Stuck? One thing
+      </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">

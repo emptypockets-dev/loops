@@ -1,7 +1,7 @@
 "use client";
 
 import type { Doc } from "@/convex/_generated/dataModel";
-import { Eye, Loader2, RefreshCw, Sparkles, Wind } from "lucide-react";
+import { Eye, Loader2, RefreshCw, Sparkles, Target, Timer, Wind } from "lucide-react";
 import { AI_BADGE_CLASS } from "@/lib/badge-styles";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -63,8 +63,44 @@ export function DailyBriefCard({
           Regenerate
         </Button>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-5">
         <p className="leading-relaxed">{brief.summary}</p>
+
+        {brief.topOutcomes.length > 0 && (
+          <div className="space-y-2">
+            <h3 className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+              <Target className="h-4 w-4" aria-hidden="true" /> Top outcomes
+            </h3>
+            <ol className="space-y-1.5">
+              {brief.topOutcomes.map((outcome, i) => (
+                <li key={i} className="flex gap-2.5 leading-snug">
+                  <span className="font-semibold text-primary" aria-hidden="true">
+                    {i + 1}.
+                  </span>
+                  <span className="font-medium">{outcome}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
+
+        {brief.fiveMinuteStarts.length > 0 && (
+          <div className="space-y-2">
+            <h3 className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+              <Timer className="h-4 w-4" aria-hidden="true" /> 5-minute starts — pick one
+            </h3>
+            <ul className="space-y-1 text-sm">
+              {brief.fiveMinuteStarts.map((start, i) => (
+                <li key={i} className="flex gap-2">
+                  <span className="text-muted-foreground" aria-hidden="true">
+                    ·
+                  </span>
+                  {start}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {brief.canWait.length > 0 && (
           <div className="space-y-2">

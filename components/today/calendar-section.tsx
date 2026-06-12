@@ -60,34 +60,22 @@ export function CalendarSection() {
     return <LoadingState label="Loading your calendar…" rows={1} />;
   }
 
-  if (state.status === "not_connected") {
+  // Not-connected and error states are one quiet line — setup prompts and
+  // hiccups shouldn't take a whole card out of every day.
+  if (state.status === "not_connected" || state.status === "error") {
     return (
-      <Card>
-        <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
-          <CalendarDays className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-          <div className="min-w-0 flex-1 space-y-1">
-            <p className="text-sm font-medium">Google Calendar isn&apos;t connected</p>
-            <p className="text-sm text-muted-foreground">{state.message}</p>
-          </div>
-          <Button variant="outline" size="sm" onClick={() => void load()}>
-            <RefreshCw aria-hidden="true" /> Check again
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (state.status === "error") {
-    return (
-      <Card>
-        <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
-          <CalendarDays className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-          <p className="min-w-0 flex-1 text-sm text-muted-foreground">{state.message}</p>
-          <Button variant="outline" size="sm" onClick={() => void load()}>
-            <RefreshCw aria-hidden="true" /> Try again
-          </Button>
-        </CardContent>
-      </Card>
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed px-3 py-2">
+        <CalendarDays className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+        <span className="min-w-0 flex-1 text-sm text-muted-foreground">{state.message}</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-muted-foreground"
+          onClick={() => void load()}
+        >
+          <RefreshCw aria-hidden="true" /> {state.status === "error" ? "Try again" : "Check again"}
+        </Button>
+      </div>
     );
   }
 

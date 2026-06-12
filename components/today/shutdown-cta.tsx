@@ -32,7 +32,7 @@ export function ShutdownCta({
   const momentum = momentumLine(runsToday, tasksDoneToday);
 
   return (
-    <Card className="border-primary/30 bg-accent/30">
+    <Card>
       <CardContent className="flex flex-wrap items-center gap-3 p-4">
         <Moon className="h-5 w-5 text-primary" aria-hidden="true" />
         <div className="min-w-0 flex-1">
