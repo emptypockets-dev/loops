@@ -181,6 +181,70 @@ export const getCurrent = internalQuery({
   },
 });
 
+/**
+ * Getting-started progress, derived from real usage — no step counters to
+ * maintain, the data itself is the checklist.
+ */
+export const onboardingStatus = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) return null;
+
+    const [firstItem, classifiedItem, firstTask, firstBrief, firstRun, recentItems] =
+      await Promise.all([
+        ctx.db
+          .query("inboxItems")
+          .withIndex("by_user", (q) => q.eq("userId", user._id))
+          .first(),
+        ctx.db
+          .query("inboxItems")
+          .withIndex("by_user_status", (q) => q.eq("userId", user._id).eq("status", "classified"))
+          .first(),
+        ctx.db
+          .query("tasks")
+          .withIndex("by_user", (q) => q.eq("userId", user._id))
+          .first(),
+        ctx.db
+          .query("dailyBriefs")
+          .withIndex("by_user", (q) => q.eq("userId", user._id))
+          .first(),
+        ctx.db
+          .query("loopRuns")
+          .withIndex("by_user", (q) => q.eq("userId", user._id))
+          .first(),
+        ctx.db
+          .query("inboxItems")
+          .withIndex("by_user", (q) => q.eq("userId", user._id))
+          .order("desc")
+          .take(50),
+      ]);
+
+    return {
+      dismissed: user.onboardingDismissedAt !== undefined,
+      captured: firstItem !== null,
+      // An item may have moved past "classified" (converted/archived) — any
+      // classifiedBy marker in the recent window counts.
+      classified:
+        classifiedItem !== null || recentItems.some((item) => item.classifiedBy !== undefined),
+      taskCreated: firstTask !== null,
+      briefGenerated: firstBrief !== null,
+      loopRun: firstRun !== null,
+    };
+  },
+});
+
+/** Hide the getting-started checklist for good. */
+export const dismissOnboarding = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const user = await requireUser(ctx);
+    if (user.onboardingDismissedAt !== undefined) return;
+    await ctx.db.patch(user._id, { onboardingDismissedAt: Date.now(), updatedAt: Date.now() });
+    await logAudit(ctx, user._id, "user.onboardingDismissed", "users", user._id);
+  },
+});
+
 /** Recent audit-log entries (Settings → Data): what the system did and when. */
 export const recentAudit = query({
   args: {},

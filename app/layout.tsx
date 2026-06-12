@@ -5,11 +5,21 @@ import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Loops — your calm command center",
+  title: {
+    default: "Loops — your calm command center",
+    template: "%s · Loops",
+  },
   description:
-    "Turn life chaos into structured loops. Capture, classify, decide the next action — you stay in control.",
+    "A personal AI command center for people with too many open loops. It catches everything, names the smallest honest next action, and drafts what needs drafting — every meaningful decision stays yours.",
   icons: {
     apple: "/icons/apple-touch-icon.png",
+  },
+  openGraph: {
+    title: "Loops — your calm command center",
+    description:
+      "Capture everything. Let AI organize and draft. Approve what matters. No streaks, no shame — just the smallest honest next action.",
+    type: "website",
+    siteName: "Loops",
   },
 };
 

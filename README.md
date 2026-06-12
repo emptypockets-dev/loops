@@ -20,7 +20,10 @@ The AI does **not** run your life. It catches, organizes, summarizes, drafts, re
 | **Inbox** | Universal capture, AI classify (with manual override), full-text search, snooze ("not now" without guilt), convert to task, archive/delete |
 | **Loops** | Recurring life protocols: create/edit/run, check off steps, every run ends with **“This counted.”** |
 | **Review** | Calm weekly review: completed, still open, can be dropped, needs a next action, patterns, loop improvements |
-| **Settings** | Profile, AI preferences (incl. opt-in auto-archive), approval rules, integrations (all “Coming soon”), data export |
+| **Settings** | Profile + email delivery toggles, AI preferences (incl. opt-in auto-archive), approval rules, integrations, data export + audit log |
+| **Help** (`/help`) | The whole system on one page: the loop, the two-week protocol, and FAQs (same content as the public landing page) |
+
+The public landing page (`/`) carries the full pitch — hero, how-it-works, features, principles, FAQ — and signed-in visitors are redirected to Today. New accounts get a **getting-started checklist** on Today that tracks real usage (first capture, first AI classify, first task, first brief, first loop run) and disappears once walked or dismissed.
 
 ---
 

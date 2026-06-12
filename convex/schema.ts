@@ -36,6 +36,8 @@ export default defineSchema({
     defaultLoopsSeededAt: v.optional(v.number()),
     // Secret for the email-in capture address (capture+<token>@…). Rotatable.
     captureToken: v.optional(v.string()),
+    // Set when the user hides the getting-started checklist (or finishes it).
+    onboardingDismissedAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })

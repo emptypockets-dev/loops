@@ -11,8 +11,8 @@ import { EmptyState } from "@/components/app/empty-state";
 import { ErrorBoundary } from "@/components/app/error-boundary";
 import { LoadingState } from "@/components/app/loading-state";
 import { ApprovalDraftCard } from "./approval-draft-card";
-import { BrainDumpCard } from "./brain-dump-card";
 import { CalendarSection } from "./calendar-section";
+import { OnboardingCard } from "./onboarding-card";
 import { ResolvedDraftsSheet } from "./resolved-drafts-sheet";
 import { DailyBriefCard } from "./daily-brief-card";
 import { FiveMinuteStartCard } from "./five-minute-start-card";
@@ -29,7 +29,6 @@ export function TodayView() {
   const pendingDrafts = useQuery(api.drafts.listPending);
   const loops = useQuery(api.loops.list);
   const openTasks = useQuery(api.tasks.listOpen);
-  const hasInboxItems = useQuery(api.inboxItems.hasAny);
   const localMidnightMs = useMemo(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
@@ -76,9 +75,9 @@ export function TodayView() {
         <p className="text-muted-foreground">{dateLabel} — what matters now, nothing more.</p>
       </header>
 
-      {hasInboxItems === false && openTasks !== undefined && openTasks.length === 0 && (
-        <BrainDumpCard />
-      )}
+      <ErrorBoundary label="getting started">
+        <OnboardingCard />
+      </ErrorBoundary>
 
       <ErrorBoundary label="the daily brief">
         <section aria-label="Daily brief" className="space-y-3">
