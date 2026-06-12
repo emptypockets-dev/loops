@@ -56,6 +56,13 @@ export function morningInDays(days: number, now: Date = new Date()): number {
   return d.getTime();
 }
 
+/** "5am" / "12pm" / "8pm" display for an hour 0–23. */
+export function formatHour(hour: number): string {
+  if (hour === 0) return "12am";
+  if (hour === 12) return "12pm";
+  return hour < 12 ? `${hour}am` : `${hour - 12}pm`;
+}
+
 /** "Jun 9 – Jun 15" style display for a YYYY-MM-DD week range. */
 export function formatWeekRange(weekStart: string, weekEnd: string): string {
   const fmt = (s: string) =>

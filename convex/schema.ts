@@ -30,9 +30,19 @@ export default defineSchema({
     briefEmailEnabled: v.optional(v.boolean()),
     reviewEmailEnabled: v.optional(v.boolean()),
     // Captured from the browser on sign-in so scheduled briefs land at the
-    // user's actual 5am. Offset is Date.prototype.getTimezoneOffset().
+    // user's actual morning. Offset is Date.prototype.getTimezoneOffset().
     timezoneOffsetMinutes: v.optional(v.number()),
     timezone: v.optional(v.string()),
+    // Adjustable day rhythm: when each loop window opens (defaults 5/12/17)
+    // and which local hour the scheduled brief generates/emails (default 5).
+    timeWindows: v.optional(
+      v.object({
+        morningStartHour: v.number(),
+        afternoonStartHour: v.number(),
+        eveningStartHour: v.number(),
+      })
+    ),
+    briefHourLocal: v.optional(v.number()),
     // Idempotency marker for default-loop seeding — set once, never re-seeded.
     defaultLoopsSeededAt: v.optional(v.number()),
     // Secret for the email-in capture address (capture+<token>@…). Rotatable.

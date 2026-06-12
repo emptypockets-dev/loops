@@ -9,7 +9,8 @@ import { Check, Download, Loader2, ShieldCheck } from "lucide-react";
 import { APPROVAL_RULES, OPENAI_MODEL, TONE_PREAMBLE } from "@/lib/constants";
 import { CONFIRMED_BADGE_CLASS, WARN_BADGE_CLASS } from "@/lib/badge-styles";
 import { INTEGRATION_DESCRIPTORS } from "@/lib/integrations/provider";
-import { formatAgo, localToday } from "@/lib/dates";
+import { formatAgo, formatHour, localToday } from "@/lib/dates";
+import { DEFAULT_TIME_WINDOWS, type TimeWindows } from "@/lib/loop-logic";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,13 @@ import {
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoadingState } from "@/components/app/loading-state";
@@ -53,6 +61,113 @@ function ProfileSection() {
             Command center since {new Date(convexUser.createdAt).toLocaleDateString()}
           </p>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function hourRange(from: number, to: number): number[] {
+  return Array.from({ length: to - from + 1 }, (_, i) => from + i);
+}
+
+function HourSelect({
+  id,
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: number;
+  options: number[];
+  onChange: (hour: number) => void;
+}) {
+  return (
+    <div className="grid gap-2">
+      <Label htmlFor={id}>{label}</Label>
+      <Select value={String(value)} onValueChange={(v) => onChange(Number(v))}>
+        <SelectTrigger id={id}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((hour) => (
+            <SelectItem key={hour} value={String(hour)}>
+              {formatHour(hour)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+function DayRhythmSection() {
+  const convexUser = useQuery(api.users.current);
+  const updatePreferences = useMutation(api.users.updatePreferences);
+
+  if (convexUser === undefined) return <LoadingState label="Loading day rhythm…" rows={1} />;
+
+  const windows = convexUser?.timeWindows ?? DEFAULT_TIME_WINDOWS;
+  const briefHour = convexUser?.briefHourLocal ?? 5;
+
+  const saveWindows = (patch: Partial<TimeWindows>) => {
+    void updatePreferences({ timeWindows: { ...windows, ...patch } })
+      .then(() => toast.success("Rhythm saved."))
+      .catch(() => toast.error("Couldn't save that."));
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Day rhythm</CardTitle>
+        <CardDescription>
+          Your day, your clock. Loops won't call something “due now” before its window opens —
+          night owls can start the evening at 8pm with a clear conscience.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <HourSelect
+            id="rhythm-morning"
+            label="Morning starts"
+            value={windows.morningStartHour}
+            options={hourRange(4, 10)}
+            onChange={(hour) => saveWindows({ morningStartHour: hour })}
+          />
+          <HourSelect
+            id="rhythm-afternoon"
+            label="Afternoon starts"
+            value={windows.afternoonStartHour}
+            options={hourRange(11, 15)}
+            onChange={(hour) => saveWindows({ afternoonStartHour: hour })}
+          />
+          <HourSelect
+            id="rhythm-evening"
+            label="Evening starts"
+            value={windows.eveningStartHour}
+            options={hourRange(16, 22)}
+            onChange={(hour) => saveWindows({ eveningStartHour: hour })}
+          />
+        </div>
+        <Separator />
+        <div className="grid gap-4 sm:grid-cols-3">
+          <HourSelect
+            id="rhythm-brief"
+            label="Daily Brief arrives at"
+            value={briefHour}
+            options={hourRange(4, 10)}
+            onChange={(hour) => {
+              void updatePreferences({ briefHourLocal: hour })
+                .then(() => toast.success(`Brief moves to ${formatHour(hour)}.`))
+                .catch(() => toast.error("Couldn't save that."));
+            }}
+          />
+        </div>
+        <p className="text-sm text-muted-foreground">
+          The brief generates (and emails, if configured) at that local hour. Windows only delay
+          “due now” — they never expire it. Running anything late is always allowed.
+        </p>
       </CardContent>
     </Card>
   );
@@ -348,6 +463,7 @@ export function SettingsView() {
         </TabsList>
         <TabsContent value="profile" className="space-y-4">
           <ProfileSection />
+          <DayRhythmSection />
           <NotificationsSection />
         </TabsContent>
         <TabsContent value="ai">

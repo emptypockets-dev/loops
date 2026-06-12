@@ -22,14 +22,36 @@ export function computeNextRunAt(
   return localDayStart + days * DAY_MS + tzOffsetMinutes * 60_000;
 }
 
-/** Hour (0–23) at which each window opens. Windows gate the start of
- * "due now" but never expire it — running late is always allowed. */
-export const LOOP_TIME_WINDOW_START: Record<LoopTimeOfDay, number> = {
-  morning: 5,
-  afternoon: 12,
-  evening: 17,
-  anytime: 0,
+/** Per-user window boundaries: the hour (0–23) each part of the day opens.
+ * Windows gate the start of "due now" but never expire it — running late is
+ * always allowed. */
+export interface TimeWindows {
+  morningStartHour: number;
+  afternoonStartHour: number;
+  eveningStartHour: number;
+}
+
+export const DEFAULT_TIME_WINDOWS: TimeWindows = {
+  morningStartHour: 5,
+  afternoonStartHour: 12,
+  eveningStartHour: 17,
 };
+
+export function windowStartHour(
+  timeOfDay: LoopTimeOfDay,
+  windows: TimeWindows = DEFAULT_TIME_WINDOWS
+): number {
+  switch (timeOfDay) {
+    case "morning":
+      return windows.morningStartHour;
+    case "afternoon":
+      return windows.afternoonStartHour;
+    case "evening":
+      return windows.eveningStartHour;
+    case "anytime":
+      return 0;
+  }
+}
 
 export const LOOP_TIME_LABELS: Record<LoopTimeOfDay, string> = {
   morning: "this morning",
@@ -54,21 +76,23 @@ export type LoopDueState = "due_now" | "later_today" | "scheduled" | "ad_hoc" | 
 export function getLoopDueState(
   loop: LoopDueShape,
   now: number = Date.now(),
-  localHour: number = new Date(now).getHours()
+  localHour: number = new Date(now).getHours(),
+  windows: TimeWindows = DEFAULT_TIME_WINDOWS
 ): LoopDueState {
   if (!loop.isActive) return "paused";
   if (loop.cadence === "ad_hoc") return "ad_hoc";
   const scheduleDue = loop.nextRunAt === undefined || loop.nextRunAt <= now;
   if (!scheduleDue) return "scheduled";
   const timeOfDay = loop.timeOfDay ?? "anytime";
-  return localHour >= LOOP_TIME_WINDOW_START[timeOfDay] ? "due_now" : "later_today";
+  return localHour >= windowStartHour(timeOfDay, windows) ? "due_now" : "later_today";
 }
 
 /** Boolean view of getLoopDueState for simple filters. */
 export function isLoopDue(
   loop: LoopDueShape,
   now: number = Date.now(),
-  localHour: number = new Date(now).getHours()
+  localHour: number = new Date(now).getHours(),
+  windows: TimeWindows = DEFAULT_TIME_WINDOWS
 ): boolean {
-  return getLoopDueState(loop, now, localHour) === "due_now";
+  return getLoopDueState(loop, now, localHour, windows) === "due_now";
 }

@@ -29,6 +29,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/app/confirm-dialog";
+import { useTimeWindows } from "@/components/app/use-time-windows";
 import { LoopFormDialog } from "./loop-form-dialog";
 import { LoopHistoryDialog } from "./loop-history-dialog";
 import { LoopRunDialog } from "./loop-run-dialog";
@@ -48,7 +49,8 @@ export function LoopCard({ loop }: { loop: Doc<"loops"> }) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
 
-  const dueState = getLoopDueState(loop);
+  const windows = useTimeWindows();
+  const dueState = getLoopDueState(loop, Date.now(), new Date().getHours(), windows);
   const due = dueState === "due_now";
 
   return (

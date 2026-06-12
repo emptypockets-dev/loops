@@ -144,9 +144,30 @@ export const updatePreferences = mutation({
     autoArchiveEnabled: v.optional(v.boolean()),
     briefEmailEnabled: v.optional(v.boolean()),
     reviewEmailEnabled: v.optional(v.boolean()),
+    timeWindows: v.optional(
+      v.object({
+        morningStartHour: v.number(),
+        afternoonStartHour: v.number(),
+        eveningStartHour: v.number(),
+      })
+    ),
+    briefHourLocal: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
+    if (args.timeWindows) {
+      const { morningStartHour: m, afternoonStartHour: a, eveningStartHour: e } = args.timeWindows;
+      const sane = [m, a, e].every((h) => Number.isInteger(h) && h >= 0 && h <= 23);
+      if (!sane || !(m < a && a < e)) {
+        throw new Error("Windows need to be in order: morning, then afternoon, then evening.");
+      }
+    }
+    if (
+      args.briefHourLocal !== undefined &&
+      (!Number.isInteger(args.briefHourLocal) || args.briefHourLocal < 0 || args.briefHourLocal > 23)
+    ) {
+      throw new Error("Pick an hour between 0 and 23.");
+    }
     const patch = pruneUndefined(args);
     if (Object.keys(patch).length === 0) return;
     await ctx.db.patch(user._id, { ...patch, updatedAt: Date.now() });

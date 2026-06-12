@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/app/empty-state";
 import { ConfirmDialog } from "@/components/app/confirm-dialog";
+import { useTimeWindows } from "@/components/app/use-time-windows";
 import { LoopRunDialog } from "@/components/loops/loop-run-dialog";
 
 function TaskRow({ task, waiting = false }: { task: Doc<"tasks">; waiting?: boolean }) {
@@ -166,11 +167,16 @@ export function OpenLoopsSection({
   tasks: Doc<"tasks">[];
 }) {
   const [runningLoop, setRunningLoop] = useState<Doc<"loops"> | null>(null);
+  const windows = useTimeWindows();
 
-  const dueLoops = loops.filter((l) => getLoopDueState(l) === "due_now");
+  const now = Date.now();
+  const localHour = new Date().getHours();
+  const dueLoops = loops.filter((l) => getLoopDueState(l, now, localHour, windows) === "due_now");
   // Scheduled for today, but their time window hasn't opened yet (e.g.
-  // Evening Shutdown before 5pm) — shown softly, never as "due now".
-  const laterTodayLoops = loops.filter((l) => getLoopDueState(l) === "later_today");
+  // Evening Shutdown before its evening start) — shown softly, never as "due now".
+  const laterTodayLoops = loops.filter(
+    (l) => getLoopDueState(l, now, localHour, windows) === "later_today"
+  );
   const activeTasks = tasks.filter((t) => t.status === "todo" || t.status === "doing");
   const waitingTasks = tasks.filter((t) => t.status === "waiting");
 

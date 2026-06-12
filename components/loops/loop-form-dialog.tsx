@@ -32,6 +32,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useTimeWindows } from "@/components/app/use-time-windows";
+import { formatHour } from "@/lib/dates";
+import type { TimeWindows } from "@/lib/loop-logic";
 
 const CADENCE_LABELS: Record<Cadence, string> = {
   daily: "Daily",
@@ -40,12 +43,18 @@ const CADENCE_LABELS: Record<Cadence, string> = {
   ad_hoc: "Ad hoc (run when needed)",
 };
 
-const TIME_OF_DAY_LABELS: Record<LoopTimeOfDay, string> = {
-  anytime: "Anytime",
-  morning: "Morning (from 5am)",
-  afternoon: "Afternoon (from noon)",
-  evening: "Evening (from 5pm)",
-};
+function timeOfDayLabel(timeOfDay: LoopTimeOfDay, windows: TimeWindows): string {
+  switch (timeOfDay) {
+    case "anytime":
+      return "Anytime";
+    case "morning":
+      return `Morning (from ${formatHour(windows.morningStartHour)})`;
+    case "afternoon":
+      return `Afternoon (from ${formatHour(windows.afternoonStartHour)})`;
+    case "evening":
+      return `Evening (from ${formatHour(windows.eveningStartHour)})`;
+  }
+}
 
 export interface LoopFormDefaults {
   name?: string;
@@ -76,6 +85,7 @@ export function LoopFormDialog({
 }) {
   const create = useMutation(api.loops.create);
   const update = useMutation(api.loops.update);
+  const windows = useTimeWindows();
 
   const [name, setName] = useState(loop?.name ?? defaults?.name ?? "");
   const [description, setDescription] = useState(loop?.description ?? defaults?.description ?? "");
@@ -213,7 +223,7 @@ export function LoopFormDialog({
               <SelectContent>
                 {LOOP_TIMES_OF_DAY.map((t) => (
                   <SelectItem key={t} value={t}>
-                    {TIME_OF_DAY_LABELS[t]}
+                    {timeOfDayLabel(t, windows)}
                   </SelectItem>
                 ))}
               </SelectContent>

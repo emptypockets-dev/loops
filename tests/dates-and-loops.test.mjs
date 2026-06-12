@@ -1,5 +1,5 @@
 import assert from "node:assert";
-import { addDaysStr, formatAgo, mondayOf, morningInDays } from "../lib/dates.ts";
+import { addDaysStr, formatAgo, formatHour, mondayOf, morningInDays } from "../lib/dates.ts";
 import { computeNextRunAt, getLoopDueState, isLoopDue } from "../lib/loop-logic.ts";
 
 // mondayOf: 2026-06-12 is a Friday → Monday is 2026-06-08
@@ -48,8 +48,22 @@ assert.equal(getLoopDueState({ ...base, nextRunAt: now + 1000 }, now, 12), "sche
 assert.equal(getLoopDueState({ ...base, cadence: "ad_hoc" }, now, 12), "ad_hoc");
 assert.equal(getLoopDueState({ ...base, isActive: false }, now, 12), "paused");
 
+// Custom per-user windows: evening starting at 8pm
+const nightOwl = { morningStartHour: 7, afternoonStartHour: 13, eveningStartHour: 20 };
+assert.equal(getLoopDueState({ ...base, timeOfDay: "evening" }, now, 18, nightOwl), "later_today");
+assert.equal(getLoopDueState({ ...base, timeOfDay: "evening" }, now, 20, nightOwl), "due_now");
+assert.equal(getLoopDueState({ ...base, timeOfDay: "morning" }, now, 6, nightOwl), "later_today");
+assert.equal(getLoopDueState({ ...base, timeOfDay: "morning" }, now, 7, nightOwl), "due_now");
+
 // isLoopDue stays the boolean view
 assert.equal(isLoopDue({ ...base, timeOfDay: "evening" }, now, 9), false);
 assert.equal(isLoopDue({ ...base, timeOfDay: "evening" }, now, 19), true);
+assert.equal(isLoopDue({ ...base, timeOfDay: "evening" }, now, 19, nightOwl), false);
 assert.equal(isLoopDue({ ...base, nextRunAt: now + 1 }, now, 12), false);
 assert.equal(isLoopDue({ ...base, nextRunAt: now - 1 }, now, 12), true);
+
+// formatHour
+assert.equal(formatHour(0), "12am");
+assert.equal(formatHour(5), "5am");
+assert.equal(formatHour(12), "12pm");
+assert.equal(formatHour(20), "8pm");

@@ -203,7 +203,7 @@ export const runScheduledDeliveries = internalAction({
       const localHour = local.getUTCHours();
       const localDate = local.toISOString().slice(0, 10);
 
-      if (localHour === 5) {
+      if (localHour === (user.briefHourLocal ?? 5)) {
         // Skip if a brief already exists for the user's local day (e.g. they
         // generated one manually) — also makes retried cron runs idempotent.
         const existing = await ctx.runQuery(internal.dailyBriefs.getForUserDate, {

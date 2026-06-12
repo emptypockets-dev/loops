@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery, query } from "./_generated/server";
-import { getLoopDueState } from "../lib/loop-logic";
+import { DEFAULT_TIME_WINDOWS, getLoopDueState } from "../lib/loop-logic";
 import { getCurrentUser } from "./lib/auth";
 
 /** The brief for a given local date (YYYY-MM-DD), or null if not generated yet. */
@@ -105,7 +105,7 @@ export const gatherContext = internalQuery({
           name: l.name,
           cadence: l.cadence,
           timeOfDay: l.timeOfDay ?? "anytime",
-          due: getLoopDueState(l, Date.now(), localHour),
+          due: getLoopDueState(l, Date.now(), localHour, user?.timeWindows ?? DEFAULT_TIME_WINDOWS),
         })),
       recentLoopRuns: runs
         .filter((r) => r.startedAt >= sevenDaysAgo)
