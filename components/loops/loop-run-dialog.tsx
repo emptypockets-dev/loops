@@ -64,12 +64,10 @@ export function LoopRunDialog({
     }
   };
 
-  const completeLabel =
-    checkedCount === loop.steps.length
-      ? "Complete loop"
-      : checkedCount > 0
-        ? `Complete with ${checkedCount}/${loop.steps.length} steps`
-        : "Complete anyway";
+  // One honest action per state: with no steps checked, recording "the
+  // minimum" is the only way to log a run (or close without recording);
+  // once any step is checked, the partial/full completion IS the record.
+  const allChecked = checkedCount === loop.steps.length;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -122,17 +120,32 @@ export function LoopRunDialog({
             </div>
 
             <DialogFooter className="sm:justify-between">
-              <Button
-                variant="outline"
-                onClick={() => void finish("minimum")}
-                disabled={saving}
-              >
-                I did the minimum
-              </Button>
-              <Button onClick={() => void finish(checkedCount === loop.steps.length ? "full" : "partial")} disabled={saving}>
-                {saving && <Loader2 className="animate-spin" aria-hidden="true" />}
-                {completeLabel}
-              </Button>
+              {checkedCount === 0 ? (
+                <>
+                  <Button
+                    variant="ghost"
+                    className="text-muted-foreground"
+                    onClick={() => onOpenChange(false)}
+                  >
+                    Close without recording
+                  </Button>
+                  <Button onClick={() => void finish("minimum")} disabled={saving}>
+                    {saving && <Loader2 className="animate-spin" aria-hidden="true" />}
+                    I did the minimum
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  className="sm:ml-auto"
+                  onClick={() => void finish(allChecked ? "full" : "partial")}
+                  disabled={saving}
+                >
+                  {saving && <Loader2 className="animate-spin" aria-hidden="true" />}
+                  {allChecked
+                    ? "Complete loop"
+                    : `Complete with ${checkedCount}/${loop.steps.length} steps`}
+                </Button>
+              )}
             </DialogFooter>
           </>
         ) : (
