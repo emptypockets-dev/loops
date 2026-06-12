@@ -11,6 +11,7 @@ import {
   INBOX_STATUSES,
   INTEGRATION_PROVIDERS,
   LOOP_OUTCOMES,
+  LOOP_TIMES_OF_DAY,
   RISK_LEVELS,
   SYNC_DIRECTIONS,
   TASK_STATUSES,
@@ -91,6 +92,8 @@ export default defineSchema({
     description: v.string(),
     category: literals(CATEGORIES),
     cadence: literals(CADENCES),
+    // Gates when "due now" starts within a day; undefined = anytime.
+    timeOfDay: v.optional(literals(LOOP_TIMES_OF_DAY)),
     steps: v.array(v.string()),
     minimumVersion: v.string(),
     idealVersion: v.string(),

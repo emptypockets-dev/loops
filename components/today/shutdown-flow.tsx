@@ -114,6 +114,7 @@ export function ShutdownFlow({
             `Guided shutdown: ${capturedCount} captured, ${winsMarked} marked done` +
             (text ? `, first action chosen.` : `.`),
           outcome: text ? "full" : "partial",
+          tzOffsetMinutes: new Date().getTimezoneOffset(),
         });
       }
       setStep("done");

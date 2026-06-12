@@ -88,6 +88,7 @@ export const ensure = mutation({
           description: seed.description,
           category: seed.category,
           cadence: seed.cadence,
+          timeOfDay: seed.timeOfDay,
           steps: [...seed.steps],
           minimumVersion: seed.minimumVersion,
           idealVersion: seed.idealVersion,
@@ -101,6 +102,22 @@ export const ensure = mutation({
       await logAudit(ctx, user._id, "loops.defaultsSeeded", "loops", "batch", {
         count: DEFAULT_LOOPS.length,
       });
+    } else {
+      // Backfill: default loops created before time-awareness get their
+      // seed's timeOfDay (only when unset — user edits are never clobbered).
+      const seedTimeByName = new Map(DEFAULT_LOOPS.map((s) => [s.name, s.timeOfDay]));
+      const userLoops = await ctx.db
+        .query("loops")
+        .withIndex("by_user", (q) => q.eq("userId", user._id))
+        .collect();
+      for (const loop of userLoops) {
+        if (loop.isDefault && loop.timeOfDay === undefined) {
+          const timeOfDay = seedTimeByName.get(loop.name);
+          if (timeOfDay) {
+            await ctx.db.patch(loop._id, { timeOfDay, updatedAt: now });
+          }
+        }
+      }
     }
 
     return { userId: user._id };

@@ -1,11 +1,12 @@
 import type { Category } from "./categories";
-import type { Cadence } from "./enums";
+import type { Cadence, LoopTimeOfDay } from "./enums";
 
 export interface DefaultLoopSeed {
   name: string;
   description: string;
   category: Category;
   cadence: Cadence;
+  timeOfDay: LoopTimeOfDay;
   steps: string[];
   minimumVersion: string;
   idealVersion: string;
@@ -22,6 +23,7 @@ export const DEFAULT_LOOPS: DefaultLoopSeed[] = [
     description: "Start the day from one calm place instead of fifteen open tabs.",
     category: "Work",
     cadence: "daily",
+    timeOfDay: "morning",
     steps: [
       "Open Today and read the Daily Brief.",
       "Scan the Inbox for anything genuinely urgent.",
@@ -37,6 +39,7 @@ export const DEFAULT_LOOPS: DefaultLoopSeed[] = [
     description: "Close the day so your head doesn't have to hold it overnight.",
     category: "Work",
     cadence: "daily",
+    timeOfDay: "evening",
     steps: [
       "Capture anything still on your mind into the Inbox.",
       "Mark what got done today.",
@@ -51,6 +54,7 @@ export const DEFAULT_LOOPS: DefaultLoopSeed[] = [
     description: "One bounded weekly container for bills, taxes, and scary unknowns.",
     category: "Money/Admin",
     cadence: "weekly",
+    timeOfDay: "anytime",
     steps: [
       "Review money/admin inbox items.",
       "Identify bills, taxes, receipts, or scary unknowns.",
@@ -66,6 +70,7 @@ export const DEFAULT_LOOPS: DefaultLoopSeed[] = [
     description: "Bring the space back to baseline — not perfect, just workable.",
     category: "House",
     cadence: "weekly",
+    timeOfDay: "anytime",
     steps: [
       "Walk each room with a basket and collect strays.",
       "Return things to where they live.",
@@ -80,6 +85,7 @@ export const DEFAULT_LOOPS: DefaultLoopSeed[] = [
     description: "Keep commitments visible and pick the one deliverable that matters.",
     category: "Work",
     cadence: "weekly",
+    timeOfDay: "anytime",
     steps: [
       "Review active commitments and deadlines.",
       "Check Waiting On items; draft a nudge if needed (drafts are never auto-sent).",
@@ -94,6 +100,7 @@ export const DEFAULT_LOOPS: DefaultLoopSeed[] = [
     description: "A small daily signal check — water, movement, honesty.",
     category: "Health",
     cadence: "daily",
+    timeOfDay: "anytime",
     steps: [
       "Drink a glass of water.",
       "Two minutes of stretching or a short walk.",
@@ -107,6 +114,7 @@ export const DEFAULT_LOOPS: DefaultLoopSeed[] = [
     description: "Small, real contact with people who matter — before it becomes guilt.",
     category: "Relationship",
     cadence: "weekly",
+    timeOfDay: "anytime",
     steps: [
       "Think of one person who matters right now.",
       "Send or draft a short, real check-in message.",
@@ -120,6 +128,7 @@ export const DEFAULT_LOOPS: DefaultLoopSeed[] = [
     description: "Tend the idea garden weekly so it stays a garden, not a landfill.",
     category: "Product",
     cadence: "weekly",
+    timeOfDay: "anytime",
     steps: [
       "Review items in Product and Idea categories.",
       "Archive what no longer sparks anything.",

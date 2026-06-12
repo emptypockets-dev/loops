@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery, query } from "./_generated/server";
+import { getLoopDueState } from "../lib/loop-logic";
 import { getCurrentUser } from "./lib/auth";
 
 /** The brief for a given local date (YYYY-MM-DD), or null if not generated yet. */
@@ -39,6 +40,9 @@ export const gatherContext = internalQuery({
   handler: async (ctx, args) => {
     const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
     const user = await ctx.db.get(args.userId);
+    // The user's local hour, so loop due-ness respects time-of-day windows.
+    const tzOffset = user?.timezoneOffsetMinutes ?? 0;
+    const localHour = new Date(Date.now() - tzOffset * 60_000).getUTCHours();
     const chosenFirstAction =
       args.date !== undefined &&
       user?.nextFirstAction !== undefined &&
@@ -100,7 +104,8 @@ export const gatherContext = internalQuery({
         .map((l) => ({
           name: l.name,
           cadence: l.cadence,
-          dueNow: l.cadence !== "ad_hoc" && (l.nextRunAt === undefined || l.nextRunAt <= Date.now()),
+          timeOfDay: l.timeOfDay ?? "anytime",
+          due: getLoopDueState(l, Date.now(), localHour),
         })),
       recentLoopRuns: runs
         .filter((r) => r.startedAt >= sevenDaysAgo)

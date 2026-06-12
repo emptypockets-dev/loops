@@ -9,6 +9,11 @@ export type EmotionalWeight = (typeof EMOTIONAL_WEIGHTS)[number];
 export const CADENCES = ["daily", "weekly", "monthly", "ad_hoc"] as const;
 export type Cadence = (typeof CADENCES)[number];
 
+/** When in the day a loop makes sense — gates "due now" so an evening
+ * ritual doesn't nag at breakfast. */
+export const LOOP_TIMES_OF_DAY = ["morning", "afternoon", "evening", "anytime"] as const;
+export type LoopTimeOfDay = (typeof LOOP_TIMES_OF_DAY)[number];
+
 export const INBOX_SOURCES = ["manual", "ai", "integration"] as const;
 export type InboxSource = (typeof INBOX_SOURCES)[number];
 

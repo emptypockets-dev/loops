@@ -8,8 +8,10 @@ import { toast } from "sonner";
 import {
   CADENCES,
   CATEGORIES,
+  LOOP_TIMES_OF_DAY,
   type Cadence,
   type Category,
+  type LoopTimeOfDay,
 } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,11 +40,19 @@ const CADENCE_LABELS: Record<Cadence, string> = {
   ad_hoc: "Ad hoc (run when needed)",
 };
 
+const TIME_OF_DAY_LABELS: Record<LoopTimeOfDay, string> = {
+  anytime: "Anytime",
+  morning: "Morning (from 5am)",
+  afternoon: "Afternoon (from noon)",
+  evening: "Evening (from 5pm)",
+};
+
 export interface LoopFormDefaults {
   name?: string;
   description?: string;
   category?: Category;
   cadence?: Cadence;
+  timeOfDay?: LoopTimeOfDay;
   steps?: string[];
   minimumVersion?: string;
   idealVersion?: string;
@@ -71,6 +81,9 @@ export function LoopFormDialog({
   const [description, setDescription] = useState(loop?.description ?? defaults?.description ?? "");
   const [category, setCategory] = useState<Category>(loop?.category ?? defaults?.category ?? "Work");
   const [cadence, setCadence] = useState<Cadence>(loop?.cadence ?? defaults?.cadence ?? "weekly");
+  const [timeOfDay, setTimeOfDay] = useState<LoopTimeOfDay>(
+    loop?.timeOfDay ?? defaults?.timeOfDay ?? "anytime"
+  );
   const [stepsText, setStepsText] = useState(
     loop?.steps.join("\n") ?? defaults?.steps?.join("\n") ?? ""
   );
@@ -102,6 +115,7 @@ export function LoopFormDialog({
         description,
         category,
         cadence,
+        timeOfDay,
         steps,
         minimumVersion,
         idealVersion,
@@ -188,6 +202,26 @@ export function LoopFormDialog({
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="loop-time-of-day">Best time of day</Label>
+            <Select value={timeOfDay} onValueChange={(v) => setTimeOfDay(v as LoopTimeOfDay)}>
+              <SelectTrigger id="loop-time-of-day">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {LOOP_TIMES_OF_DAY.map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {TIME_OF_DAY_LABELS[t]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              It won't show as “due now” before its window opens — and running late is always
+              allowed.
+            </p>
           </div>
 
           <div className="grid gap-2">

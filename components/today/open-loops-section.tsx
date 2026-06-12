@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import {
   Archive,
   CheckCircle2,
+  Clock,
   Hourglass,
   MoreHorizontal,
   PenLine,
@@ -16,7 +17,7 @@ import {
   Timer,
   Trash2,
 } from "lucide-react";
-import { isLoopDue } from "@/lib/loop-logic";
+import { getLoopDueState, LOOP_TIME_LABELS } from "@/lib/loop-logic";
 import { formatAgo } from "@/lib/dates";
 import type { TaskStatus } from "@/lib/constants";
 import { Badge } from "@/components/ui/badge";
@@ -166,11 +167,14 @@ export function OpenLoopsSection({
 }) {
   const [runningLoop, setRunningLoop] = useState<Doc<"loops"> | null>(null);
 
-  const dueLoops = loops.filter((l) => isLoopDue(l));
+  const dueLoops = loops.filter((l) => getLoopDueState(l) === "due_now");
+  // Scheduled for today, but their time window hasn't opened yet (e.g.
+  // Evening Shutdown before 5pm) — shown softly, never as "due now".
+  const laterTodayLoops = loops.filter((l) => getLoopDueState(l) === "later_today");
   const activeTasks = tasks.filter((t) => t.status === "todo" || t.status === "doing");
   const waitingTasks = tasks.filter((t) => t.status === "waiting");
 
-  if (dueLoops.length === 0 && tasks.length === 0) {
+  if (dueLoops.length === 0 && laterTodayLoops.length === 0 && tasks.length === 0) {
     return (
       <EmptyState
         icon={CheckCircle2}
@@ -202,6 +206,32 @@ export function OpenLoopsSection({
       {activeTasks.map((task) => (
         <TaskRow key={task._id} task={task} />
       ))}
+
+      {laterTodayLoops.length > 0 && (
+        <div className="space-y-2 pt-2">
+          <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+            Later today
+          </h3>
+          {laterTodayLoops.map((loop) => (
+            <Card key={loop._id} className="bg-muted/40">
+              <CardContent className="flex items-center gap-3 p-3">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-muted-foreground">
+                    {loop.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {LOOP_TIME_LABELS[loop.timeOfDay ?? "anytime"]} — it'll wait for its window
+                  </p>
+                </div>
+                <Button size="sm" variant="ghost" onClick={() => setRunningLoop(loop)}>
+                  <Play aria-hidden="true" /> Run early
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {waitingTasks.length > 0 && (
         <div className="space-y-3 pt-2">

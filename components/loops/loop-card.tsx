@@ -7,6 +7,7 @@ import type { Doc } from "@/convex/_generated/dataModel";
 import { toast } from "sonner";
 import {
   CircleDot,
+  Clock,
   History,
   MoreHorizontal,
   Pause,
@@ -14,7 +15,7 @@ import {
   Play,
   Trash2,
 } from "lucide-react";
-import { isLoopDue } from "@/lib/loop-logic";
+import { getLoopDueState, LOOP_TIME_LABELS } from "@/lib/loop-logic";
 import { formatAgo, formatDateShort } from "@/lib/dates";
 import type { Cadence } from "@/lib/constants";
 import { Badge } from "@/components/ui/badge";
@@ -47,7 +48,8 @@ export function LoopCard({ loop }: { loop: Doc<"loops"> }) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
 
-  const due = isLoopDue(loop);
+  const dueState = getLoopDueState(loop);
+  const due = dueState === "due_now";
 
   return (
     <Card className={!loop.isActive ? "opacity-70" : undefined}>
@@ -55,9 +57,14 @@ export function LoopCard({ loop }: { loop: Doc<"loops"> }) {
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="secondary">{CADENCE_LABELS[loop.cadence]}</Badge>
           <Badge variant="outline">{loop.category}</Badge>
-          {due && loop.isActive && (
+          {due && (
             <Badge className="bg-accent text-accent-foreground">
               <CircleDot aria-hidden="true" /> due now
+            </Badge>
+          )}
+          {dueState === "later_today" && (
+            <Badge variant="outline">
+              <Clock aria-hidden="true" /> {LOOP_TIME_LABELS[loop.timeOfDay ?? "anytime"]}
             </Badge>
           )}
           {!loop.isActive && <Badge variant="outline">paused</Badge>}
@@ -70,9 +77,12 @@ export function LoopCard({ loop }: { loop: Doc<"loops"> }) {
         )}
         <p className="text-xs text-muted-foreground">
           {loop.steps.length} step{loop.steps.length === 1 ? "" : "s"}
+          {loop.timeOfDay && loop.timeOfDay !== "anytime" ? ` · ${loop.timeOfDay}s` : ""}
           {" · "}
           {loop.lastRunAt ? `last run ${formatAgo(loop.lastRunAt)}` : "never run — no pressure"}
-          {loop.nextRunAt && !due ? ` · next ${formatDateShort(loop.nextRunAt)}` : ""}
+          {loop.nextRunAt && dueState === "scheduled"
+            ? ` · next ${formatDateShort(loop.nextRunAt)}`
+            : ""}
         </p>
       </CardContent>
       <CardFooter className="flex gap-2 p-4 pt-0">

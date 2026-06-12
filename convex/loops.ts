@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
-import { CADENCES, CATEGORIES, LOOP_OUTCOMES } from "../lib/constants";
+import { CADENCES, CATEGORIES, LOOP_OUTCOMES, LOOP_TIMES_OF_DAY } from "../lib/constants";
 import { computeNextRunAt } from "../lib/loop-logic";
 import { getCurrentUser, requireUser } from "./lib/auth";
 import { logAudit } from "./lib/audit";
@@ -40,6 +40,7 @@ export const create = mutation({
     description: v.string(),
     category: literals(CATEGORIES),
     cadence: literals(CADENCES),
+    timeOfDay: v.optional(literals(LOOP_TIMES_OF_DAY)),
     steps: v.array(v.string()),
     minimumVersion: v.string(),
     idealVersion: v.string(),
@@ -55,6 +56,7 @@ export const create = mutation({
       description: args.description.trim(),
       category: args.category,
       cadence: args.cadence,
+      timeOfDay: args.timeOfDay ?? "anytime",
       steps: args.steps,
       minimumVersion: args.minimumVersion.trim(),
       idealVersion: args.idealVersion.trim(),
@@ -75,6 +77,7 @@ export const update = mutation({
     description: v.string(),
     category: literals(CATEGORIES),
     cadence: literals(CADENCES),
+    timeOfDay: v.optional(literals(LOOP_TIMES_OF_DAY)),
     steps: v.array(v.string()),
     minimumVersion: v.string(),
     idealVersion: v.string(),
@@ -84,7 +87,11 @@ export const update = mutation({
     const { user } = await getOwnedLoop(ctx, id);
     if (!rest.name.trim()) throw new Error("A loop needs a name.");
     if (rest.steps.length === 0) throw new Error("A loop needs at least one step.");
-    await ctx.db.patch(id, { ...rest, updatedAt: Date.now() });
+    await ctx.db.patch(id, {
+      ...rest,
+      timeOfDay: rest.timeOfDay ?? "anytime",
+      updatedAt: Date.now(),
+    });
     await logAudit(ctx, user._id, "loop.updated", "loops", id, { name: rest.name });
   },
 });
@@ -134,9 +141,12 @@ export const completeRun = mutation({
     completedSteps: v.array(v.string()),
     notes: v.string(),
     outcome: literals(LOOP_OUTCOMES),
+    // Date.prototype.getTimezoneOffset() — lands nextRunAt on local midnight.
+    tzOffsetMinutes: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const { user, loop } = await getOwnedLoop(ctx, args.loopId);
+    const tzOffsetMinutes = Math.max(-840, Math.min(840, args.tzOffsetMinutes ?? 0));
     const now = Date.now();
     const runId = await ctx.db.insert("loopRuns", {
       userId: user._id,
@@ -150,7 +160,7 @@ export const completeRun = mutation({
     });
     await ctx.db.patch(loop._id, {
       lastRunAt: now,
-      nextRunAt: computeNextRunAt(loop.cadence, now),
+      nextRunAt: computeNextRunAt(loop.cadence, now, tzOffsetMinutes),
       updatedAt: now,
     });
     await logAudit(ctx, user._id, "loopRun.completed", "loopRuns", runId, {

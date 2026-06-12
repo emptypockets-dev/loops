@@ -54,6 +54,7 @@ export function LoopRunDialog({
         completedSteps: loop.steps.filter((_, i) => checked[i]),
         notes,
         outcome,
+        tzOffsetMinutes: new Date().getTimezoneOffset(),
       });
       setCompletedOutcome(outcome);
     } catch (error) {
