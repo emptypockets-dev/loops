@@ -7,6 +7,7 @@ import type { Doc } from "@/convex/_generated/dataModel";
 import { toast } from "sonner";
 import {
   CircleDot,
+  History,
   MoreHorizontal,
   Pause,
   PenLine,
@@ -28,6 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/app/confirm-dialog";
 import { LoopFormDialog } from "./loop-form-dialog";
+import { LoopHistoryDialog } from "./loop-history-dialog";
 import { LoopRunDialog } from "./loop-run-dialog";
 
 const CADENCE_LABELS: Record<Cadence, string> = {
@@ -43,6 +45,7 @@ export function LoopCard({ loop }: { loop: Doc<"loops"> }) {
   const [runOpen, setRunOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const due = isLoopDue(loop);
 
@@ -88,6 +91,9 @@ export function LoopCard({ loop }: { loop: Doc<"loops"> }) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={() => setHistoryOpen(true)}>
+              <History /> Run history
+            </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={() =>
                 void setActive({ id: loop._id, isActive: !loop.isActive }).then(() =>
@@ -118,6 +124,9 @@ export function LoopCard({ loop }: { loop: Doc<"loops"> }) {
 
       {runOpen && <LoopRunDialog loop={loop} open={runOpen} onOpenChange={setRunOpen} />}
       {editOpen && <LoopFormDialog loop={loop} open={editOpen} onOpenChange={setEditOpen} />}
+      {historyOpen && (
+        <LoopHistoryDialog loop={loop} open={historyOpen} onOpenChange={setHistoryOpen} />
+      )}
       <ConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}

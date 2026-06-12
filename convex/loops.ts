@@ -162,6 +162,22 @@ export const completeRun = mutation({
   },
 });
 
+/** Run history for one loop — proof that it counted, accumulated. */
+export const runsForLoop = query({
+  args: { loopId: v.id("loops") },
+  handler: async (ctx, args) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) return [];
+    const loop = await ctx.db.get(args.loopId);
+    if (!loop || loop.userId !== user._id) return [];
+    return await ctx.db
+      .query("loopRuns")
+      .withIndex("by_loop", (q) => q.eq("loopId", args.loopId))
+      .order("desc")
+      .take(25);
+  },
+});
+
 /** Recent runs across all loops (Today context + Review). */
 export const recentRuns = query({
   args: { limit: v.optional(v.number()) },

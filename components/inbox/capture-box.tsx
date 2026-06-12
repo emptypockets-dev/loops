@@ -23,6 +23,28 @@ export function CaptureBox({
   const [text, setText] = useState(initialText);
   const [saving, setSaving] = useState(false);
   const capture = useMutation(api.inboxItems.capture);
+  const captureMany = useMutation(api.inboxItems.captureMany);
+
+  const lines = text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  const submitMany = async () => {
+    if (lines.length < 2 || saving) return;
+    setSaving(true);
+    try {
+      const { count } = await captureMany({ lines });
+      setText("");
+      toast.success(`${count} items captured. That's a real brain dump.`);
+      onCaptured?.();
+    } catch (error) {
+      console.error(error);
+      toast.error("Couldn't capture those. Try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const submit = async () => {
     const rawText = text.trim();
@@ -75,9 +97,14 @@ export function CaptureBox({
         </Button>
         <div className="flex items-center gap-3">
           <span className="hidden text-xs text-muted-foreground sm:inline">⌘/Ctrl + Enter</span>
+          {lines.length >= 2 && (
+            <Button variant="outline" onClick={() => void submitMany()} disabled={saving}>
+              {lines.length} separate items
+            </Button>
+          )}
           <Button onClick={() => void submit()} disabled={!text.trim() || saving}>
             <Plus aria-hidden="true" />
-            {saving ? "Capturing…" : "Capture"}
+            {saving ? "Capturing…" : lines.length >= 2 ? "One item" : "Capture"}
           </Button>
         </div>
       </div>

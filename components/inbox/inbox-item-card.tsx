@@ -15,6 +15,7 @@ import {
   Mail,
   MoreHorizontal,
   PenLine,
+  RefreshCw,
   Sparkles,
   Timer,
   Trash2,
@@ -35,6 +36,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ClassificationBadge } from "@/components/app/classification-badge";
 import { ConfirmDialog } from "@/components/app/confirm-dialog";
+import { LoopFormDialog } from "@/components/loops/loop-form-dialog";
 import { EditInboxItemDialog } from "./edit-inbox-item-dialog";
 
 export function InboxItemCard({ item }: { item: Doc<"inboxItems"> }) {
@@ -46,11 +48,13 @@ export function InboxItemCard({ item }: { item: Doc<"inboxItems"> }) {
   const remove = useMutation(api.inboxItems.remove);
   const snooze = useMutation(api.inboxItems.snooze);
   const unsnooze = useMutation(api.inboxItems.unsnooze);
+  const markConvertedToLoop = useMutation(api.inboxItems.markConvertedToLoop);
 
   const [classifying, setClassifying] = useState(false);
   const [drafting, setDrafting] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [loopFormOpen, setLoopFormOpen] = useState(false);
 
   const isArchived = item.status === "archived";
   const isConverted = item.status === "converted";
@@ -202,6 +206,11 @@ export function InboxItemCard({ item }: { item: Doc<"inboxItems"> }) {
             <DropdownMenuItem onSelect={() => setEditOpen(true)}>
               <PenLine /> Edit / override
             </DropdownMenuItem>
+            {!isArchived && !isConverted && (
+              <DropdownMenuItem onSelect={() => setLoopFormOpen(true)}>
+                <RefreshCw /> Make it a loop
+              </DropdownMenuItem>
+            )}
             {!isArchived &&
               (isSnoozed ? (
                 <DropdownMenuItem
@@ -250,6 +259,26 @@ export function InboxItemCard({ item }: { item: Doc<"inboxItems"> }) {
       </CardFooter>
 
       {editOpen && <EditInboxItemDialog item={item} open={editOpen} onOpenChange={setEditOpen} />}
+      {loopFormOpen && (
+        <LoopFormDialog
+          open={loopFormOpen}
+          onOpenChange={setLoopFormOpen}
+          defaults={{
+            name: item.cleanedTitle || item.rawText.slice(0, 80),
+            description: item.summary,
+            category: item.category,
+            steps: [item.suggestedNextAction || item.rawText.slice(0, 120)].filter(Boolean),
+            minimumVersion: item.suggestedFiveMinuteStart,
+          }}
+          onSaved={(loopId) => {
+            if (loopId) {
+              void markConvertedToLoop({ id: item._id, loopId }).catch(() =>
+                toast.error("Loop created, but the item couldn't be marked converted.")
+              );
+            }
+          }}
+        />
+      )}
       <ConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}

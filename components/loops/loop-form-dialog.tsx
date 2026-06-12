@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import type { Doc } from "@/convex/_generated/dataModel";
+import type { Doc, Id } from "@/convex/_generated/dataModel";
 import { toast } from "sonner";
 import {
   CADENCES,
@@ -38,26 +38,48 @@ const CADENCE_LABELS: Record<Cadence, string> = {
   ad_hoc: "Ad hoc (run when needed)",
 };
 
+export interface LoopFormDefaults {
+  name?: string;
+  description?: string;
+  category?: Category;
+  cadence?: Cadence;
+  steps?: string[];
+  minimumVersion?: string;
+  idealVersion?: string;
+}
+
 /** Create or edit a loop. Steps are one per line — simple and shippable. */
 export function LoopFormDialog({
   loop,
+  defaults,
   open,
   onOpenChange,
+  onSaved,
 }: {
   loop?: Doc<"loops">;
+  /** Prefill for create mode (e.g. converting an inbox item into a loop). */
+  defaults?: LoopFormDefaults;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Called after a successful save; create mode passes the new loop id. */
+  onSaved?: (loopId: Id<"loops"> | null) => void;
 }) {
   const create = useMutation(api.loops.create);
   const update = useMutation(api.loops.update);
 
-  const [name, setName] = useState(loop?.name ?? "");
-  const [description, setDescription] = useState(loop?.description ?? "");
-  const [category, setCategory] = useState<Category>(loop?.category ?? "Work");
-  const [cadence, setCadence] = useState<Cadence>(loop?.cadence ?? "weekly");
-  const [stepsText, setStepsText] = useState(loop?.steps.join("\n") ?? "");
-  const [minimumVersion, setMinimumVersion] = useState(loop?.minimumVersion ?? "");
-  const [idealVersion, setIdealVersion] = useState(loop?.idealVersion ?? "");
+  const [name, setName] = useState(loop?.name ?? defaults?.name ?? "");
+  const [description, setDescription] = useState(loop?.description ?? defaults?.description ?? "");
+  const [category, setCategory] = useState<Category>(loop?.category ?? defaults?.category ?? "Work");
+  const [cadence, setCadence] = useState<Cadence>(loop?.cadence ?? defaults?.cadence ?? "weekly");
+  const [stepsText, setStepsText] = useState(
+    loop?.steps.join("\n") ?? defaults?.steps?.join("\n") ?? ""
+  );
+  const [minimumVersion, setMinimumVersion] = useState(
+    loop?.minimumVersion ?? defaults?.minimumVersion ?? ""
+  );
+  const [idealVersion, setIdealVersion] = useState(
+    loop?.idealVersion ?? defaults?.idealVersion ?? ""
+  );
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
@@ -87,9 +109,11 @@ export function LoopFormDialog({
       if (loop) {
         await update({ id: loop._id, ...payload });
         toast.success("Loop updated.");
+        onSaved?.(null);
       } else {
-        await create(payload);
+        const { id } = await create(payload);
         toast.success("Loop created.");
+        onSaved?.(id);
       }
       onOpenChange(false);
     } catch (error) {

@@ -188,6 +188,50 @@ export const remove = mutation({
   },
 });
 
+/** Brain-dump mode: one capture per line, in a single transaction. */
+export const captureMany = mutation({
+  args: { lines: v.array(v.string()) },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    const lines = args.lines.map((l) => l.trim()).filter(Boolean).slice(0, 20);
+    if (lines.length === 0) throw new Error("Nothing to capture.");
+    const now = Date.now();
+    for (const rawText of lines) {
+      await ctx.db.insert("inboxItems", {
+        userId: user._id,
+        rawText,
+        cleanedTitle: rawText.length > 90 ? `${rawText.slice(0, 87)}…` : rawText,
+        summary: "",
+        category: "Someday",
+        urgency: "low",
+        emotionalWeight: "low",
+        suggestedNextAction: "",
+        suggestedFiveMinuteStart: "",
+        source: "manual",
+        status: "unprocessed",
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+    await logAudit(ctx, user._id, "inboxItem.brainDump", "inboxItems", "batch", {
+      count: lines.length,
+    });
+    return { count: lines.length };
+  },
+});
+
+/** Mark an item converted after it became a loop (the loop is created separately). */
+export const markConvertedToLoop = mutation({
+  args: { id: v.id("inboxItems"), loopId: v.id("loops") },
+  handler: async (ctx, args) => {
+    const { user } = await getOwnedItem(ctx, args.id);
+    await ctx.db.patch(args.id, { status: "converted", updatedAt: Date.now() });
+    await logAudit(ctx, user._id, "inboxItem.convertedToLoop", "loops", args.loopId, {
+      inboxItemId: args.id,
+    });
+  },
+});
+
 /** Convert an inbox item into a real task; the item is marked "converted". */
 export const convertToTask = mutation({
   args: { id: v.id("inboxItems") },
